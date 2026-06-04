@@ -167,6 +167,50 @@ export default defineConfig({
   build: {
     outDir: path.resolve(import.meta.dirname, "dist/public"),
     emptyOutDir: true,
+    // Code splitting for large SaaS platform — reduces initial bundle from ~2MB to ~200KB
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          // Vendor: heavy libraries that rarely change
+          "vendor-react": ["react", "react-dom"],
+          "vendor-charts": ["recharts"],
+          "vendor-trpc": ["@trpc/client", "@trpc/react-query", "@tanstack/react-query"],
+          "vendor-ui": ["framer-motion", "lucide-react", "streamdown"],
+          // Feature chunks: each agent panel loaded on demand
+          "chunk-admin": [
+            "./client/src/pages/Dashboard.tsx",
+            "./client/src/pages/Tenants.tsx",
+            "./client/src/pages/TenantDetail.tsx",
+            "./client/src/pages/Users.tsx",
+            "./client/src/pages/Billing.tsx",
+            "./client/src/pages/Monitoring.tsx",
+          ],
+          "chunk-agents": [
+            "./client/src/pages/AgentControlCenter.tsx",
+            "./client/src/pages/agents/ConversationalAgent.tsx",
+            "./client/src/pages/agents/FraudDetection.tsx",
+            "./client/src/pages/agents/CreditRisk.tsx",
+            "./client/src/pages/agents/Compliance.tsx",
+            "./client/src/pages/agents/Personalization.tsx",
+            "./client/src/pages/agents/PredictiveAnalytics.tsx",
+            "./client/src/pages/agents/DataAggregation.tsx",
+            "./client/src/pages/agents/SmartDashboard.tsx",
+          ],
+          "chunk-tenant": [
+            "./client/src/pages/tenant/TenantOverview.tsx",
+            "./client/src/pages/tenant/TenantCustomers.tsx",
+            "./client/src/pages/tenant/TenantCustomerDetail.tsx",
+            "./client/src/pages/tenant/TenantTransactions.tsx",
+            "./client/src/pages/tenant/TenantChannels.tsx",
+            "./client/src/pages/tenant/TenantAMLCompliance.tsx",
+            "./client/src/pages/tenant/TenantAgentEvents.tsx",
+            "./client/src/pages/tenant/TenantDeployment.tsx",
+            "./client/src/pages/tenant/TenantDataSources.tsx",
+            "./client/src/pages/tenant/TenantSettings.tsx",
+          ],
+        },
+      },
+    },
   },
   server: {
     host: true,

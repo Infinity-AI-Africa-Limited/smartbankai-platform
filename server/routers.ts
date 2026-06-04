@@ -24,6 +24,7 @@ import {
   getTenantTransactionStats,
 } from "./db";
 import { agentTypes } from "../drizzle/schema";
+import { cached, TTL, rateLimiter, RATE_LIMITS } from "./_core/scale";
 
 // ─── Role guard helpers ───────────────────────────────────────────────────────
 const adminProcedure = protectedProcedure.use(({ ctx, next }) => {
@@ -89,22 +90,20 @@ export const appRouter = router({
   // ─── Platform Stats ────────────────────────────────────────────────────────
   platform: router({
     stats: protectedProcedure.query(async () => {
-      const stats = await getPlatformStats();
-      return stats;
+      return cached("platform:stats", TTL.PLATFORM_STATS, () => getPlatformStats());
     }),
     agentMetrics: protectedProcedure.query(async () => {
-      // Return mock metrics for demo
-      return generateMockMetrics();
+      return cached("platform:agentMetrics", TTL.AGENT_METRICS, async () => generateMockMetrics());
     }),
   }),
 
   // ─── Tenants ───────────────────────────────────────────────────────────────
   tenants: router({
     list: protectedProcedure.query(async () => {
-      return getAllTenants();
+      return cached("tenants:list", TTL.TENANT_SUMMARY, () => getAllTenants());
     }),
     stats: protectedProcedure.query(async () => {
-      return getTenantStats();
+      return cached("tenants:stats", TTL.TENANT_SUMMARY, () => getTenantStats());
     }),
     byId: protectedProcedure.input(z.object({ id: z.number() })).query(async ({ input }) => {
       return getTenantById(input.id);
@@ -487,14 +486,16 @@ Current date: ${new Date().toLocaleDateString("en-NG", { timeZone: "Africa/Lagos
     summary: protectedProcedure
       .input(z.object({ tenantId: z.number() }))
       .query(async ({ input }) => {
-        const [txStats, customerStats, channelStats, agentEventStats, tenant] = await Promise.all([
-          getTenantTransactionStats(input.tenantId),
-          getCustomerStats(input.tenantId),
-          getChannelStats(input.tenantId),
-          getAgentEventStats(input.tenantId),
-          getTenantById(input.tenantId),
-        ]);
-        return { txStats, customerStats, channelStats, agentEventStats, tenant };
+        return cached(`tenant:${input.tenantId}:overview`, TTL.TENANT_SUMMARY, async () => {
+          const [txStats, customerStats, channelStats, agentEventStats, tenant] = await Promise.all([
+            getTenantTransactionStats(input.tenantId),
+            getCustomerStats(input.tenantId),
+            getChannelStats(input.tenantId),
+            getAgentEventStats(input.tenantId),
+            getTenantById(input.tenantId),
+          ]);
+          return { txStats, customerStats, channelStats, agentEventStats, tenant };
+        });
       }),
     agentNetwork: protectedProcedure
       .input(z.object({ tenantId: z.number() }))

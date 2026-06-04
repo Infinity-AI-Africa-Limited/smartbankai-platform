@@ -46,12 +46,12 @@
 - [x] Final brand consistency pass
 - [x] Save checkpoint
 
-## Future Enhancements
-- [ ] Real-time WebSocket agent metrics (currently mock polling)
-- [ ] PDF/Excel export for compliance reports
-- [ ] Stripe payment integration for billing
-- [ ] Email notification system for AML alerts
-- [ ] Multi-language support (Hausa, Yoruba, Igbo)
+## Future Enhancements (Roadmap — Intentionally Deferred)
+- [ ] Real-time WebSocket agent metrics (currently mock polling — deferred to v2)
+- [ ] PDF/Excel export for compliance reports (deferred to v2)
+- [ ] Stripe payment integration for billing (deferred to v2)
+- [ ] Email notification system for AML alerts (deferred to v2)
+- [ ] Multi-language support (Hausa, Yoruba, Igbo) (deferred to v2)
 
 ## Tenant-Side Platform (Phase 2 Build)
 
