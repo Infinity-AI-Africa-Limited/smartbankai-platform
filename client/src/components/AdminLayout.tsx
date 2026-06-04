@@ -212,6 +212,18 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         })}
       </nav>
 
+      {/* Tenant Portal Switch */}
+      {!collapsed && (
+        <div className="px-3 pb-2">
+          <Link href="/tenant/overview">
+            <div className="flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer text-xs transition-all hover:bg-white/5" style={{ color: "#F47558", border: "1px solid #F4755833" }}>
+              <Globe className="h-3.5 w-3.5" />
+              <span className="font-medium">View Tenant Portal</span>
+            </div>
+          </Link>
+        </div>
+      )}
+
       {/* User footer */}
       <div className={cn("border-t border-[#1E2A3A] p-3", collapsed && "px-2")}>
         {!collapsed ? (

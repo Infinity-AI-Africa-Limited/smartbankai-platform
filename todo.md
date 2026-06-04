@@ -52,3 +52,49 @@
 - [ ] Stripe payment integration for billing
 - [ ] Email notification system for AML alerts
 - [ ] Multi-language support (Hausa, Yoruba, Igbo)
+
+## Tenant-Side Platform (Phase 2 Build)
+
+### Demo Data Seeding
+- [x] Nigerian banking demo data: 500+ customers, 2000+ transactions, fraud alerts, credit applications
+- [x] Demo data seed script with realistic Naira amounts, Nigerian names, Lagos/Abuja locations
+- [x] Channel attribution: transactions tagged by web banking vs mobile super app
+- [x] AML alerts, CBN compliance reports, and audit log entries seeded
+
+### Database Schema Extensions
+- [x] customers table (Nigerian profiles, BVN, NIN, account types)
+- [x] transactions table (Naira amounts, channels, merchant categories, geolocation)
+- [x] channel_sessions table (web banking, mobile app, USSD sessions)
+- [x] agent_events table (per-agent processing events linked to transactions)
+- [x] credit_applications table (loan applications with scoring history)
+- [x] aml_alerts table (AML/CFT flags with CBN reporting)
+- [x] data_sources table (core banking, payment gateway, credit bureau connectors)
+
+### Tenant Portal (Operational Platform Layer)
+- [x] Tenant platform overview: deployment status, agent network topology, uptime
+- [x] Deployment configuration panel (On-Premise / Private Cloud / Hybrid status)
+- [x] Agent network health dashboard with inter-agent communication metrics
+- [x] API gateway console: endpoint health, request volumes, latency by channel
+- [x] Channel integration status: web banking, mobile super app, USSD
+
+### Tenant Agent Dashboards (with Demo Data)
+- [x] Conversational Agent: live chat sessions from web/mobile, intent analytics, language breakdown
+- [x] Fraud Detection: real-time transaction feed with risk scores, flagged alerts, Nigerian fraud patterns
+- [x] Credit Risk: loan applications pipeline, scoring breakdown, alternative data signals
+- [x] Personalization: customer segment profiles, product recommendation engine, conversion metrics
+- [x] Predictive Analytics: churn forecasts, revenue projections, default probability curves
+- [x] Compliance & Reporting: CBN regulatory reports, AML alert queue, audit trail
+- [x] Data Aggregation: core banking connector status, data pipeline health, ingestion metrics
+- [x] Smart Dashboard: financial overview widgets, KPI cards, trend charts
+
+### Tenant Backoffice Admin Portal
+- [x] Tenant admin overview: platform health, agent status, channel metrics
+- [x] Customer 360 view: full customer profile with transaction history and AI insights
+- [x] Transaction monitoring: searchable, filterable transaction ledger with AI flags
+- [x] Channel analytics: web vs mobile vs USSD breakdown with session metrics
+- [x] System configuration: agent thresholds, alert rules, integration settings
+- [x] Reports center: CBN reports, management reports, AML alerts
+
+### Super-Admin Integration
+- [x] Demo data visible in Infinity AI super-admin portal (tenants, transactions, agent events)
+- [x] Tenant health metrics flowing to super-admin monitoring dashboard

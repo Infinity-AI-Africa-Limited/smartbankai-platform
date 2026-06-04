@@ -8,6 +8,7 @@ import {
   complianceReports, amlAlerts,
   auditLogs, billingRecords, chatMessages,
   agentTypes,
+  customers, channelSessions, agentEvents, dataSources,
 } from "../drizzle/schema";
 import { ENV } from "./_core/env";
 
@@ -265,5 +266,105 @@ export async function getPlatformStats() {
     userCount: Number(uc?.cnt ?? 0),
     txCount: Number(txc?.cnt ?? 0),
     alertCount: Number(ac?.cnt ?? 0),
+  };
+}
+
+// ─── Customers ────────────────────────────────────────────────────────────────
+export async function getCustomers(tenantId: number, limit = 50, offset = 0) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(customers).where(eq(customers.tenantId, tenantId)).orderBy(desc(customers.createdAt)).limit(limit).offset(offset);
+}
+
+export async function getCustomerById(id: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db.select().from(customers).where(eq(customers.id, id)).limit(1);
+  return result[0];
+}
+
+export async function getCustomerStats(tenantId: number) {
+  const db = await getDb();
+  if (!db) return { total: 0, active: 0, highNetWorth: 0, sme: 0, newThisMonth: 0 };
+  const [total] = await db.select({ cnt: count() }).from(customers).where(eq(customers.tenantId, tenantId));
+  const [active] = await db.select({ cnt: count() }).from(customers).where(and(eq(customers.tenantId, tenantId), eq(customers.isActive, true)));
+  const [hnw] = await db.select({ cnt: count() }).from(customers).where(and(eq(customers.tenantId, tenantId), eq(customers.segment, "high_net_worth")));
+  const [smeCount] = await db.select({ cnt: count() }).from(customers).where(and(eq(customers.tenantId, tenantId), eq(customers.segment, "sme")));
+  const monthStart = new Date(); monthStart.setDate(1); monthStart.setHours(0,0,0,0);
+  const [newMonth] = await db.select({ cnt: count() }).from(customers).where(and(eq(customers.tenantId, tenantId), sql`${customers.createdAt} >= ${monthStart}`));
+  return {
+    total: Number(total?.cnt ?? 0),
+    active: Number(active?.cnt ?? 0),
+    highNetWorth: Number(hnw?.cnt ?? 0),
+    sme: Number(smeCount?.cnt ?? 0),
+    newThisMonth: Number(newMonth?.cnt ?? 0),
+  };
+}
+
+// ─── Channel Sessions ─────────────────────────────────────────────────────────
+export async function getChannelSessions(tenantId: number, limit = 50) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(channelSessions).where(eq(channelSessions.tenantId, tenantId)).orderBy(desc(channelSessions.startedAt)).limit(limit);
+}
+
+export async function getChannelStats(tenantId: number) {
+  const db = await getDb();
+  if (!db) return { totalSessions: 0, mobile: 0, web: 0, ussd: 0, avgDuration: 0 };
+  const rows = await db.select({ channel: channelSessions.channel, cnt: count() }).from(channelSessions).where(eq(channelSessions.tenantId, tenantId)).groupBy(channelSessions.channel);
+  const stats: Record<string, number> = {};
+  let total = 0;
+  rows.forEach(r => { stats[r.channel ?? "unknown"] = Number(r.cnt); total += Number(r.cnt); });
+  const [avgRow] = await db.select({ avg: sql<number>`AVG(${channelSessions.duration})` }).from(channelSessions).where(eq(channelSessions.tenantId, tenantId));
+  return {
+    totalSessions: total,
+    mobile: stats["mobile_app"] ?? 0,
+    web: stats["web_banking"] ?? 0,
+    ussd: stats["ussd"] ?? 0,
+    branch: stats["branch"] ?? 0,
+    avgDuration: Math.round(Number(avgRow?.avg ?? 0)),
+  };
+}
+
+// ─── Agent Events ─────────────────────────────────────────────────────────────
+export async function getAgentEvents(tenantId: number, agentName?: string, limit = 50) {
+  const db = await getDb();
+  if (!db) return [];
+  const conditions = [eq(agentEvents.tenantId, tenantId)];
+  if (agentName) conditions.push(eq(agentEvents.agentName, agentName));
+  return db.select().from(agentEvents).where(and(...conditions)).orderBy(desc(agentEvents.createdAt)).limit(limit);
+}
+
+export async function getAgentEventStats(tenantId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select({ agentName: agentEvents.agentName, cnt: count(), successCnt: sql<number>`SUM(CASE WHEN ${agentEvents.status} = 'success' THEN 1 ELSE 0 END)`, avgLatency: sql<number>`AVG(${agentEvents.processingTimeMs})` }).from(agentEvents).where(eq(agentEvents.tenantId, tenantId)).groupBy(agentEvents.agentName);
+}
+
+// ─── Data Sources ─────────────────────────────────────────────────────────────
+export async function getDataSources(tenantId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(dataSources).where(eq(dataSources.tenantId, tenantId)).orderBy(desc(dataSources.createdAt));
+}
+
+// ─── Tenant Transaction Stats ─────────────────────────────────────────────────
+export async function getTenantTransactionStats(tenantId: number) {
+  const db = await getDb();
+  if (!db) return { total: 0, today: 0, flagged: 0, totalVolume: "0", successRate: 0 };
+  const [total] = await db.select({ cnt: count() }).from(transactions).where(eq(transactions.tenantId, tenantId));
+  const today = new Date(); today.setHours(0,0,0,0);
+  const [todayCount] = await db.select({ cnt: count() }).from(transactions).where(and(eq(transactions.tenantId, tenantId), sql`${transactions.createdAt} >= ${today}`));
+  const [flagged] = await db.select({ cnt: count() }).from(transactions).where(and(eq(transactions.tenantId, tenantId), sql`${transactions.fraudStatus} != 'clean'`));
+  const [volRow] = await db.select({ vol: sql<string>`SUM(${transactions.amount})` }).from(transactions).where(and(eq(transactions.tenantId, tenantId), eq(transactions.status, "success")));
+  const [successRow] = await db.select({ cnt: count() }).from(transactions).where(and(eq(transactions.tenantId, tenantId), eq(transactions.status, "success")));
+  const totalCount = Number(total?.cnt ?? 0);
+  const successCount = Number(successRow?.cnt ?? 0);
+  return {
+    total: totalCount,
+    today: Number(todayCount?.cnt ?? 0),
+    flagged: Number(flagged?.cnt ?? 0),
+    totalVolume: volRow?.vol ?? "0",
+    successRate: totalCount > 0 ? Math.round((successCount / totalCount) * 100) : 0,
   };
 }

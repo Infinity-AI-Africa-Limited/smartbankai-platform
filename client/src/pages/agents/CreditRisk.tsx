@@ -181,7 +181,7 @@ export default function CreditRisk() {
                       {a.creditScore ?? "—"}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-slate-300 font-mono text-sm">{a.alternativeDataScore ?? "—"}</td>
+                  <td className="px-4 py-3 text-slate-300 font-mono text-sm">{((a as any).altDataScore ?? (a as any).alternativeDataScore ?? "—")}</td>
                   <td className="px-4 py-3">
                     {a.recommendation ? (
                       <Badge className={cn("text-[10px] border capitalize", recBg[a.recommendation as keyof typeof recBg], recColors[a.recommendation as keyof typeof recColors])}>

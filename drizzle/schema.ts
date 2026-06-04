@@ -9,6 +9,7 @@ import {
   decimal,
   json,
   bigint,
+  float,
 } from "drizzle-orm/mysql-core";
 
 // ─── Users ────────────────────────────────────────────────────────────────────
@@ -46,6 +47,9 @@ export const tenants = mysqlTable("tenants", {
   subscriptionEndDate: timestamp("subscriptionEndDate"),
   monthlyActiveUsers: int("monthlyActiveUsers").default(0),
   totalTransactions: bigint("totalTransactions", { mode: "number" }).default(0),
+  deploymentModel: mysqlEnum("deploymentModel", ["on_premise", "private_cloud", "hybrid"]).default("private_cloud"),
+  deploymentRegion: varchar("deploymentRegion", { length: 100 }).default("Lagos, Nigeria"),
+  apiBaseUrl: varchar("apiBaseUrl", { length: 500 }),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });
@@ -95,36 +99,129 @@ export const agentMetrics = mysqlTable("agent_metrics", {
 
 export type AgentMetric = typeof agentMetrics.$inferSelect;
 
-// ─── Transactions (Fraud Detection) ──────────────────────────────────────────
+// ─── Customers (Nigerian Banking Profiles) ────────────────────────────────────
+export const customers = mysqlTable("customers", {
+  id: int("id").autoincrement().primaryKey(),
+  tenantId: int("tenantId").notNull(),
+  customerId: varchar("customerId", { length: 50 }).notNull().unique(),
+  firstName: varchar("firstName", { length: 100 }).notNull(),
+  lastName: varchar("lastName", { length: 100 }).notNull(),
+  email: varchar("email", { length: 320 }),
+  phone: varchar("phone", { length: 20 }),
+  bvn: varchar("bvn", { length: 11 }),
+  nin: varchar("nin", { length: 11 }),
+  accountNumber: varchar("accountNumber", { length: 20 }).notNull(),
+  accountType: mysqlEnum("accountType", ["savings", "current", "domiciliary", "fixed_deposit"]).default("savings"),
+  segment: mysqlEnum("segment", ["mass_market", "sme", "salary_earner", "high_net_worth", "student", "diaspora"]).default("mass_market"),
+  kycLevel: mysqlEnum("kycLevel", ["tier1", "tier2", "tier3"]).default("tier1"),
+  state: varchar("state", { length: 100 }),
+  city: varchar("city", { length: 100 }),
+  gender: mysqlEnum("gender", ["male", "female"]),
+  dateOfBirth: varchar("dateOfBirth", { length: 20 }),
+  occupation: varchar("occupation", { length: 200 }),
+  monthlyIncome: decimal("monthlyIncome", { precision: 15, scale: 2 }),
+  accountBalance: decimal("accountBalance", { precision: 15, scale: 2 }).default("0.00"),
+  creditScore: int("creditScore").default(0),
+  riskRating: mysqlEnum("riskRating", ["low", "medium", "high"]).default("low"),
+  isActive: boolean("isActive").default(true),
+  preferredChannel: mysqlEnum("preferredChannel", ["web", "mobile", "ussd", "branch"]).default("mobile"),
+  lastLoginAt: timestamp("lastLoginAt"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type Customer = typeof customers.$inferSelect;
+export type InsertCustomer = typeof customers.$inferInsert;
+
+// ─── Transactions ─────────────────────────────────────────────────────────────
 export const transactions = mysqlTable("transactions", {
   id: int("id").autoincrement().primaryKey(),
   tenantId: int("tenantId").notNull(),
+  customerId: int("customerId"),
   transactionRef: varchar("transactionRef", { length: 100 }).notNull().unique(),
   amount: decimal("amount", { precision: 15, scale: 2 }).notNull(),
   currency: varchar("currency", { length: 10 }).default("NGN"),
-  channel: varchar("channel", { length: 50 }),
+  type: mysqlEnum("type", ["transfer", "payment", "withdrawal", "deposit", "airtime", "data", "bill_payment", "pos", "atm", "ussd"]).default("transfer"),
+  channel: mysqlEnum("channel", ["web_banking", "mobile_app", "ussd", "pos", "atm", "branch", "api"]).default("mobile_app"),
   senderAccount: varchar("senderAccount", { length: 100 }),
   receiverAccount: varchar("receiverAccount", { length: 100 }),
+  receiverName: varchar("receiverName", { length: 255 }),
+  receiverBank: varchar("receiverBank", { length: 100 }),
+  narration: text("narration"),
+  merchantCategory: varchar("merchantCategory", { length: 100 }),
+  location: varchar("location", { length: 200 }),
+  status: mysqlEnum("status", ["success", "failed", "pending", "reversed"]).default("success"),
   riskScore: decimal("riskScore", { precision: 5, scale: 2 }).default("0.00"),
   fraudStatus: mysqlEnum("fraudStatus", ["clean", "flagged", "confirmed_fraud", "under_review"]).default("clean"),
   flagReason: text("flagReason"),
+  agentProcessed: boolean("agentProcessed").default(false),
+  processingTimeMs: int("processingTimeMs").default(0),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 });
 
 export type Transaction = typeof transactions.$inferSelect;
+export type InsertTransaction = typeof transactions.$inferInsert;
+
+// ─── Channel Sessions ─────────────────────────────────────────────────────────
+export const channelSessions = mysqlTable("channel_sessions", {
+  id: int("id").autoincrement().primaryKey(),
+  tenantId: int("tenantId").notNull(),
+  customerId: int("customerId"),
+  sessionId: varchar("sessionId", { length: 100 }).notNull().unique(),
+  channel: mysqlEnum("channel", ["web_banking", "mobile_app", "ussd", "branch"]).default("mobile_app"),
+  deviceType: varchar("deviceType", { length: 100 }),
+  osVersion: varchar("osVersion", { length: 100 }),
+  appVersion: varchar("appVersion", { length: 50 }),
+  ipAddress: varchar("ipAddress", { length: 50 }),
+  location: varchar("location", { length: 200 }),
+  duration: int("duration").default(0),
+  pagesViewed: int("pagesViewed").default(0),
+  transactionCount: int("transactionCount").default(0),
+  status: mysqlEnum("status", ["active", "completed", "expired", "terminated"]).default("completed"),
+  startedAt: timestamp("startedAt").defaultNow().notNull(),
+  endedAt: timestamp("endedAt"),
+});
+
+export type ChannelSession = typeof channelSessions.$inferSelect;
+
+// ─── Agent Events ─────────────────────────────────────────────────────────────
+export const agentEvents = mysqlTable("agent_events", {
+  id: int("id").autoincrement().primaryKey(),
+  tenantId: int("tenantId").notNull(),
+  agentName: varchar("agentName", { length: 100 }).notNull(),
+  eventType: varchar("eventType", { length: 100 }).notNull(),
+  entityType: varchar("entityType", { length: 50 }),
+  entityId: varchar("entityId", { length: 100 }),
+  inputData: json("inputData"),
+  outputData: json("outputData"),
+  processingTimeMs: int("processingTimeMs").default(0),
+  status: mysqlEnum("status", ["success", "failed", "timeout"]).default("success"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type AgentEvent = typeof agentEvents.$inferSelect;
 
 // ─── Credit Applications ──────────────────────────────────────────────────────
 export const creditApplications = mysqlTable("credit_applications", {
   id: int("id").autoincrement().primaryKey(),
   tenantId: int("tenantId").notNull(),
+  customerId: int("customerId"),
+  applicationRef: varchar("applicationRef", { length: 50 }).notNull().unique(),
   applicantName: varchar("applicantName", { length: 255 }),
   applicantId: varchar("applicantId", { length: 100 }),
+  loanType: mysqlEnum("loanType", ["personal", "sme", "mortgage", "auto", "salary_advance", "micro"]).default("personal"),
   requestedAmount: decimal("requestedAmount", { precision: 15, scale: 2 }),
+  approvedAmount: decimal("approvedAmount", { precision: 15, scale: 2 }),
+  tenure: int("tenure"),
+  interestRate: decimal("interestRate", { precision: 5, scale: 2 }),
   creditScore: int("creditScore"),
+  altDataScore: int("altDataScore"),
+  dtiRatio: decimal("dtiRatio", { precision: 5, scale: 2 }),
   recommendation: mysqlEnum("recommendation", ["approve", "decline", "review"]),
-  alternativeDataScore: int("alternativeDataScore"),
-  status: mysqlEnum("status", ["pending", "approved", "declined", "under_review"]).default("pending"),
+  status: mysqlEnum("status", ["pending", "approved", "declined", "under_review", "disbursed"]).default("pending"),
+  declineReason: text("declineReason"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });
 
 export type CreditApplication = typeof creditApplications.$inferSelect;
@@ -147,6 +244,7 @@ export type ComplianceReport = typeof complianceReports.$inferSelect;
 export const amlAlerts = mysqlTable("aml_alerts", {
   id: int("id").autoincrement().primaryKey(),
   tenantId: int("tenantId").notNull(),
+  customerId: int("customerId"),
   transactionRef: varchar("transactionRef", { length: 100 }),
   alertType: varchar("alertType", { length: 100 }),
   severity: mysqlEnum("severity", ["low", "medium", "high", "critical"]).default("medium"),
@@ -201,3 +299,21 @@ export const chatMessages = mysqlTable("chat_messages", {
 });
 
 export type ChatMessage = typeof chatMessages.$inferSelect;
+
+// ─── Data Sources (Integration Connectors) ────────────────────────────────────
+export const dataSources = mysqlTable("data_sources", {
+  id: int("id").autoincrement().primaryKey(),
+  tenantId: int("tenantId").notNull(),
+  name: varchar("name", { length: 200 }).notNull(),
+  type: mysqlEnum("type", ["core_banking", "payment_gateway", "credit_bureau", "kyc_provider", "mobile_money", "data_warehouse"]).notNull(),
+  provider: varchar("provider", { length: 100 }),
+  status: mysqlEnum("status", ["connected", "disconnected", "error", "syncing"]).default("connected"),
+  lastSyncAt: timestamp("lastSyncAt"),
+  recordsIngested: bigint("recordsIngested", { mode: "number" }).default(0),
+  syncFrequency: varchar("syncFrequency", { length: 50 }).default("real-time"),
+  config: json("config"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type DataSource = typeof dataSources.$inferSelect;
