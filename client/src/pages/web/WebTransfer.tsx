@@ -292,7 +292,7 @@ export default function WebTransfer() {
             </div>
             <div className="flex gap-3">
               <Button className="web-btn-secondary border-0 flex-1 h-11" onClick={handleReset}>New Transfer</Button>
-              <Button className="web-btn-primary flex-1 h-11" onClick={() => window.location.href = "/web/transactions"}>View Transactions</Button>
+              <Button className="web-btn-primary flex-1 h-11" onClick={() => window.location.href = "/banking/transactions"}>View Transactions</Button>
             </div>
           </div>
         )}

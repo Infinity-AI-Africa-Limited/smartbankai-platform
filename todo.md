@@ -101,35 +101,35 @@
 
 ## Omnichannel Digital Banking Platform (Phase 3)
 
-### Web Banking Portal (/web/*)
-- [ ] Web banking login page with OTP simulation and AI fraud check
-- [ ] Web banking dashboard: account overview, balance, AI financial health score, spending insights
-- [ ] Accounts page: account details, statement, mini-statement
-- [ ] Transaction history: searchable, filterable ledger with AI fraud flags and category labels
-- [ ] Fund transfer: intra-bank, inter-bank (NIP), scheduled transfers with AI anomaly detection
-- [ ] Bill payments: utilities, airtime, data, DSTV with AI spending recommendations
-- [ ] Cards management: virtual/physical card controls, freeze/unfreeze, spending limits
-- [ ] Loan application: AI-powered credit scoring, instant decision, disbursement
-- [ ] AI Financial Assistant: LLM-powered chat embedded in web portal
-- [ ] Notifications centre: AI-generated alerts, fraud warnings, spending insights
-- [ ] Profile & settings: KYC status, security settings, notification preferences
+### Web Banking Portal (/web/*) — Implemented as /banking/*
+- [x] Web banking login page with OTP simulation and AI fraud check
+- [x] Web banking dashboard: account overview, balance, AI financial health score, spending insights
+- [x] Accounts page: account details, statement, mini-statement
+- [x] Transaction history: searchable, filterable ledger with AI fraud flags and category labels
+- [x] Fund transfer: intra-bank, inter-bank (NIP), scheduled transfers with AI anomaly detection
+- [x] Bill payments: utilities, airtime, data, DSTV with AI spending recommendations
+- [x] Cards management: virtual/physical card controls, freeze/unfreeze, spending limits
+- [x] Loan application: AI-powered credit scoring, instant decision, disbursement
+- [x] AI Financial Assistant: LLM-powered chat embedded in web portal
+- [ ] Notifications centre: AI-generated alerts, fraud warnings, spending insights (deferred to v2)
+- [ ] Profile & settings: KYC status, security settings, notification preferences (deferred to v2)
 
-### Mobile Banking Super-App (/mobile/*)
-- [ ] Mobile app shell: bottom navigation, mobile-first layout, app-like experience
-- [ ] Mobile home screen: balance card, quick actions, AI insights feed, recent transactions
-- [ ] Mobile accounts: account switcher, balance reveal, account details
-- [ ] Mobile send money: contact picker, recent recipients, AI fraud warning overlay
-- [ ] Mobile payments: QR code payment simulation, bill pay, airtime top-up
-- [ ] Mobile cards: card carousel, controls, transaction limits
-- [ ] Mobile loans: loan calculator, application flow, repayment schedule
-- [ ] Mobile AI chat assistant: floating chat bubble, LLM-powered
-- [ ] Mobile notifications: push notification feed with AI-categorised alerts
-- [ ] Mobile profile: biometric settings, KYC, security centre
+### Mobile Banking Super-App (/mobile/*) — Implemented as /app/*
+- [x] Mobile app shell: bottom navigation, mobile-first layout, app-like experience
+- [x] Mobile home screen: balance card, quick actions, AI insights feed, recent transactions
+- [x] Mobile accounts: account switcher, balance reveal, account details
+- [x] Mobile send money: contact picker, recent recipients, AI fraud warning overlay
+- [x] Mobile payments: QR code payment simulation, bill pay, airtime top-up
+- [x] Mobile cards: card carousel, controls, transaction limits
+- [x] Mobile loans: loan calculator, application flow, repayment schedule
+- [x] Mobile AI chat assistant: floating chat bubble, LLM-powered
+- [ ] Mobile notifications: push notification feed with AI-categorised alerts (deferred to v2)
+- [ ] Mobile profile: biometric settings, KYC, security centre (deferred to v2)
 
 ### Channel-to-Agent Integration
-- [ ] All 8 agents powering features in both web and mobile channels
-- [ ] Demo data from admin portal reflected in both channels (same transactions, customers, alerts)
-- [ ] Channel selector and cross-portal navigation links
+- [x] All 8 agents powering features in both web and mobile channels
+- [x] Demo data from admin portal reflected in both channels (same transactions, customers, alerts)
+- [x] Channel selector and cross-portal navigation links
 
 ## Omnichannel Build — Completed Items
 

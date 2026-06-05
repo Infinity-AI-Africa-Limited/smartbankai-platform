@@ -9,12 +9,12 @@ import {
 } from "lucide-react";
 
 const QUICK_ACTIONS = [
-  { label: "Transfer", icon: ArrowLeftRight, path: "/mobile/transfer", color: "#3b82f6" },
-  { label: "Pay Bills", icon: Zap, path: "/mobile/payments", color: "#f59e0b" },
-  { label: "Airtime", icon: Phone, path: "/mobile/payments", color: "#10b981" },
-  { label: "Cable TV", icon: Tv, path: "/mobile/payments", color: "#8b5cf6" },
-  { label: "Send Money", icon: Send, path: "/mobile/transfer", color: "#F47558" },
-  { label: "More", icon: Plus, path: "/mobile", color: "#6b7280" },
+  { label: "Transfer", icon: ArrowLeftRight, path: "/app/transfer", color: "#3b82f6" },
+  { label: "Pay Bills", icon: Zap, path: "/app/transfer", color: "#f59e0b" },
+  { label: "Airtime", icon: Phone, path: "/app/transfer", color: "#10b981" },
+  { label: "Cable TV", icon: Tv, path: "/app/transfer", color: "#8b5cf6" },
+  { label: "Send Money", icon: Send, path: "/app/transfer", color: "#F47558" },
+  { label: "More", icon: Plus, path: "/app/home", color: "#6b7280" },
 ];
 
 function formatNaira(n: number) {
@@ -119,7 +119,7 @@ export default function MobileHome() {
         <div>
           <div className="flex items-center justify-between mb-3">
             <p className="text-white/50 text-xs font-medium uppercase tracking-wider">Recent Transactions</p>
-            <Link href="/mobile/transactions">
+            <Link href="/app/transactions">
               <button className="text-[#F47558] text-xs font-medium">See All</button>
             </Link>
           </div>

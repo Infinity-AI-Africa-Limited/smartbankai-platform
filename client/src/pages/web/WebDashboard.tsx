@@ -70,12 +70,12 @@ const AI_INSIGHTS = [
 ];
 
 const QUICK_ACTIONS = [
-  { label: "Transfer", icon: ArrowLeftRight, href: "/web/transfer", color: "#F47558" },
-  { label: "Pay Bills", icon: Zap, href: "/web/payments", color: "#3b82f6" },
-  { label: "Cards", icon: CreditCard, href: "/web/cards", color: "#8b5cf6" },
-  { label: "Loans", icon: PiggyBank, href: "/web/loans", color: "#10b981" },
-  { label: "AI Chat", icon: MessageSquare, href: "/web/assistant", color: "#F47558" },
-  { label: "Analytics", icon: BarChart3, href: "/web/transactions", color: "#06b6d4" },
+  { label: "Transfer", icon: ArrowLeftRight, href: "/banking/transfer", color: "#F47558" },
+  { label: "Pay Bills", icon: Zap, href: "/banking/payments", color: "#3b82f6" },
+  { label: "Cards", icon: CreditCard, href: "/banking/cards", color: "#8b5cf6" },
+  { label: "Loans", icon: PiggyBank, href: "/banking/loans", color: "#10b981" },
+  { label: "AI Chat", icon: MessageSquare, href: "/banking/assistant", color: "#F47558" },
+  { label: "Analytics", icon: BarChart3, href: "/banking/transactions", color: "#06b6d4" },
 ];
 
 function formatNaira(amount: number) {
@@ -284,7 +284,7 @@ export default function WebDashboard() {
         <div className="web-card p-5">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-white font-semibold">Recent Transactions</h3>
-            <Link href="/web/transactions">
+            <Link href="/banking/transactions">
               <a className="text-[#F47558] text-sm hover:text-[#f5856a] flex items-center gap-1 transition-colors">
                 View all <ChevronRight className="w-3.5 h-3.5" />
               </a>
@@ -345,7 +345,7 @@ export default function WebDashboard() {
                 <p className="text-white/30 text-xs mt-1">Powered by SmartBank AI · Smart Dashboard Agent</p>
               </div>
             </div>
-            <Link href="/web/assistant">
+            <Link href="/banking/assistant">
               <a className="web-btn-primary px-4 py-2 rounded-xl text-sm font-medium text-white flex items-center gap-2 hover:opacity-90 transition-opacity">
                 <MessageSquare className="w-4 h-4" />
                 Ask AI

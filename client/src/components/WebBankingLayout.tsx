@@ -17,14 +17,13 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 const navItems = [
-  { path: "/web/dashboard", icon: LayoutDashboard, label: "Dashboard" },
-  { path: "/web/accounts", icon: Landmark, label: "Accounts" },
-  { path: "/web/transactions", icon: Receipt, label: "Transactions" },
-  { path: "/web/transfer", icon: ArrowLeftRight, label: "Transfer" },
-  { path: "/web/payments", icon: Zap, label: "Payments" },
-  { path: "/web/cards", icon: CreditCard, label: "Cards" },
-  { path: "/web/loans", icon: PiggyBank, label: "Loans" },
-  { path: "/web/assistant", icon: MessageSquare, label: "AI Assistant" },
+  { path: "/banking/dashboard", icon: LayoutDashboard, label: "Dashboard" },
+  { path: "/banking/transactions", icon: Receipt, label: "Transactions" },
+  { path: "/banking/transfer", icon: ArrowLeftRight, label: "Transfer" },
+  { path: "/banking/payments", icon: Zap, label: "Payments" },
+  { path: "/banking/cards", icon: CreditCard, label: "Cards" },
+  { path: "/banking/loans", icon: PiggyBank, label: "Loans" },
+  { path: "/banking/assistant", icon: MessageSquare, label: "AI Assistant" },
 ];
 
 export default function WebBankingLayout({ children }: { children: React.ReactNode }) {
@@ -32,7 +31,7 @@ export default function WebBankingLayout({ children }: { children: React.ReactNo
   const [mobileOpen, setMobileOpen] = useState(false);
   const { data: user } = trpc.auth.me.useQuery();
   const logoutMutation = trpc.auth.logout.useMutation({
-    onSuccess: () => { window.location.href = "/web/login"; }
+    onSuccess: () => { window.location.href = "/banking/login"; }
   });
 
   // Demo customer data
@@ -134,19 +133,27 @@ export default function WebBankingLayout({ children }: { children: React.ReactNo
 
         {/* Bottom Actions */}
         <div className="px-3 py-4 border-t border-white/10 space-y-1">
-          <Link href="/web/notifications">
-            <a className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-white/60 hover:text-white hover:bg-white/8 transition-all cursor-pointer">
-              <Bell className="w-4 h-4" />
-              Notifications
-              <Badge className="ml-auto bg-[#F47558] text-white border-0 text-xs">3</Badge>
-            </a>
-          </Link>
-          <Link href="/web/profile">
-            <a className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-white/60 hover:text-white hover:bg-white/8 transition-all cursor-pointer">
-              <Settings className="w-4 h-4" />
-              Settings
-            </a>
-          </Link>
+          <button
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-white/60 hover:text-white hover:bg-white/8 transition-all"
+            onClick={() => {
+              const { toast } = require("sonner");
+              toast("Notifications coming in v2");
+            }}
+          >
+            <Bell className="w-4 h-4" />
+            Notifications
+            <Badge className="ml-auto bg-[#F47558] text-white border-0 text-xs">3</Badge>
+          </button>
+          <button
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-white/60 hover:text-white hover:bg-white/8 transition-all"
+            onClick={() => {
+              const { toast } = require("sonner");
+              toast("Profile settings coming in v2");
+            }}
+          >
+            <Settings className="w-4 h-4" />
+            Settings
+          </button>
           <button
             onClick={() => logoutMutation.mutate()}
             className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-white/60 hover:text-red-400 hover:bg-red-500/10 transition-all"
@@ -154,7 +161,13 @@ export default function WebBankingLayout({ children }: { children: React.ReactNo
             <LogOut className="w-4 h-4" />
             Sign Out
           </button>
-          <div className="pt-2">
+          <div className="pt-2 space-y-1">
+            <Link href="/app/home">
+              <a className="flex items-center gap-2 px-3 py-2 rounded-xl text-xs text-white/30 hover:text-white/60 transition-all cursor-pointer">
+                <TrendingUp className="w-3 h-3" />
+                Switch to Mobile App
+              </a>
+            </Link>
             <Link href="/tenant/overview">
               <a className="flex items-center gap-2 px-3 py-2 rounded-xl text-xs text-white/30 hover:text-white/60 transition-all cursor-pointer">
                 <Shield className="w-3 h-3" />
@@ -218,10 +231,10 @@ export default function WebBankingLayout({ children }: { children: React.ReactNo
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="web-dropdown w-48">
                 <DropdownMenuItem asChild>
-                  <Link href="/web/profile"><a className="cursor-pointer flex items-center gap-2"><User className="w-4 h-4" />Profile</a></Link>
+                  <Link href="/tenant/overview"><a className="cursor-pointer flex items-center gap-2"><User className="w-4 h-4" />Admin Portal</a></Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
-                  <Link href="/web/notifications"><a className="cursor-pointer flex items-center gap-2"><Bell className="w-4 h-4" />Notifications</a></Link>
+                  <Link href="/app/home"><a className="cursor-pointer flex items-center gap-2"><TrendingUp className="w-4 h-4" />Mobile App</a></Link>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem

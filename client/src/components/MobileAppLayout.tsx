@@ -15,11 +15,11 @@ import { useAuth } from "@/_core/hooks/useAuth";
 import { getLoginUrl } from "@/const";
 
 const NAV_ITEMS = [
-  { path: "/mobile", label: "Home", icon: Home },
-  { path: "/mobile/transfer", label: "Transfer", icon: ArrowLeftRight },
-  { path: "/mobile/cards", label: "Cards", icon: CreditCard },
-  { path: "/mobile/loans", label: "Loans", icon: PiggyBank },
-  { path: "/mobile/assistant", label: "AI", icon: Sparkles },
+  { path: "/app/home", label: "Home", icon: Home },
+  { path: "/app/transfer", label: "Transfer", icon: ArrowLeftRight },
+  { path: "/app/cards", label: "Cards", icon: CreditCard },
+  { path: "/app/loans", label: "Loans", icon: PiggyBank },
+  { path: "/app/assistant", label: "AI", icon: Sparkles },
 ];
 
 interface MobileAppLayoutProps {
@@ -72,7 +72,7 @@ export default function MobileAppLayout({
       {/* App Header */}
       <header className="px-5 py-3 flex items-center justify-between shrink-0">
         {showBack ? (
-          <Link href="/mobile">
+          <Link href="/app/home">
             <button className="w-9 h-9 rounded-xl bg-white/8 border border-white/10 flex items-center justify-center">
               <ChevronLeft className="w-5 h-5 text-white" />
             </button>
@@ -124,12 +124,12 @@ export default function MobileAppLayout({
             </div>
             <div className="space-y-1 flex-1">
               {[
-                { label: "Account Settings", path: "/mobile" },
-                { label: "Security & Privacy", path: "/mobile" },
-                { label: "Notifications", path: "/mobile" },
-                { label: "Statements", path: "/mobile/transactions" },
-                { label: "Help & Support", path: "/mobile" },
-                { label: "Switch to Web Banking", path: "/web" },
+                { label: "Transactions", path: "/app/transactions" },
+                { label: "Fund Transfer", path: "/app/transfer" },
+                { label: "Cards", path: "/app/cards" },
+                { label: "Loans", path: "/app/loans" },
+                { label: "AI Assistant", path: "/app/assistant" },
+                { label: "Switch to Web Banking", path: "/banking/dashboard" },
                 { label: "Admin Portal", path: "/tenant/overview" },
               ].map(item => (
                 <Link key={item.label} href={item.path}>
@@ -166,7 +166,7 @@ export default function MobileAppLayout({
       <nav className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[430px] bg-[#0d1b2a]/95 backdrop-blur-xl border-t border-white/10 px-2 pb-safe">
         <div className="flex items-center justify-around py-2">
           {NAV_ITEMS.map(({ path, label, icon: Icon }) => {
-            const isActive = location === path || (path !== "/mobile" && location.startsWith(path));
+            const isActive = location === path || (path !== "/app/home" && location.startsWith(path));
             return (
               <Link key={path} href={path}>
                 <button className="flex flex-col items-center gap-1 px-4 py-2 rounded-xl transition-all">

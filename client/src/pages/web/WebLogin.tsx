@@ -18,7 +18,7 @@ export default function WebLogin() {
   const { data: user } = trpc.auth.me.useQuery();
 
   if (user) {
-    navigate("/web/dashboard");
+    navigate("/banking/dashboard");
     return null;
   }
 
