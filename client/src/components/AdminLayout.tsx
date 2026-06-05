@@ -7,7 +7,7 @@ import {
   LayoutDashboard, Building2, Bot, Users, CreditCard, Activity,
   MessageSquare, ShieldAlert, TrendingUp, FileText, Database,
   BarChart3, ChevronLeft, ChevronRight, LogOut, Bell, Settings,
-  Menu, X, ChevronDown, Cpu, Globe, Lock,
+  Menu, X, ChevronDown, Cpu, Globe, Lock, Monitor, Smartphone,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -211,6 +211,22 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           );
         })}
       </nav>
+
+      {/* Channel Portal Switches */}
+      <div className="px-3 pb-1 space-y-1">
+        <Link href="/banking/login">
+          <div className="flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer text-xs transition-all hover:bg-white/5" style={{ color: "#8892A4" }}>
+            <Monitor className="h-3.5 w-3.5 flex-shrink-0" />
+            {!collapsed && <span className="font-medium">Web Banking Portal</span>}
+          </div>
+        </Link>
+        <Link href="/app/home">
+          <div className="flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer text-xs transition-all hover:bg-white/5" style={{ color: "#8892A4" }}>
+            <Smartphone className="h-3.5 w-3.5 flex-shrink-0" />
+            {!collapsed && <span className="font-medium">Mobile Super-App</span>}
+          </div>
+        </Link>
+      </div>
 
       {/* Tenant Portal Switch */}
       {!collapsed && (

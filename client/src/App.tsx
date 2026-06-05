@@ -10,20 +10,22 @@ import { Settings as SettingsIcon } from "lucide-react";
 // ── Layouts (loaded eagerly — needed on every route) ──────────────────────────
 import AdminLayout from "./components/AdminLayout";
 import TenantLayout from "./components/TenantLayout";
+import WebBankingLayout from "./components/WebBankingLayout";
+import MobileAppLayout from "./components/MobileAppLayout";
 
 // ── Loading fallback ──────────────────────────────────────────────────────────
 function PageLoader() {
   return (
     <div className="flex items-center justify-center h-full min-h-[400px]">
       <div className="flex flex-col items-center gap-3">
-        <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
-        <span className="text-xs text-slate-500">Loading...</span>
+        <div className="w-8 h-8 border-2 border-[#F47558] border-t-transparent rounded-full animate-spin" />
+        <span className="text-xs text-slate-500">Loading SmartBank AI...</span>
       </div>
     </div>
   );
 }
 
-// ── Infinity AI Super-Admin Pages (lazy — only loaded when navigated to) ──────
+// ── Infinity AI Super-Admin Pages (lazy) ──────────────────────────────────────
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 const Tenants = lazy(() => import("./pages/Tenants"));
 const TenantDetail = lazy(() => import("./pages/TenantDetail"));
@@ -53,6 +55,24 @@ const TenantAMLCompliance = lazy(() => import("./pages/tenant/TenantAMLComplianc
 const TenantAgentEvents = lazy(() => import("./pages/tenant/TenantAgentEvents"));
 const TenantSettings = lazy(() => import("./pages/tenant/TenantSettings"));
 const TenantCustomerDetail = lazy(() => import("./pages/tenant/TenantCustomerDetail"));
+
+// ── Web Banking Portal Pages (lazy) ──────────────────────────────────────────
+const WebLogin = lazy(() => import("./pages/web/WebLogin"));
+const WebDashboard = lazy(() => import("./pages/web/WebDashboard"));
+const WebTransactions = lazy(() => import("./pages/web/WebTransactions"));
+const WebTransfer = lazy(() => import("./pages/web/WebTransfer"));
+const WebPayments = lazy(() => import("./pages/web/WebPayments"));
+const WebCards = lazy(() => import("./pages/web/WebCards"));
+const WebLoans = lazy(() => import("./pages/web/WebLoans"));
+const WebAssistant = lazy(() => import("./pages/web/WebAssistant"));
+
+// ── Mobile Banking Super-App Pages (lazy) ────────────────────────────────────
+const MobileHome = lazy(() => import("./pages/mobile/MobileHome"));
+const MobileTransfer = lazy(() => import("./pages/mobile/MobileTransfer"));
+const MobileCards = lazy(() => import("./pages/mobile/MobileCards"));
+const MobileLoans = lazy(() => import("./pages/mobile/MobileLoans"));
+const MobileAssistant = lazy(() => import("./pages/mobile/MobileAssistant"));
+const MobileTransactions = lazy(() => import("./pages/mobile/MobileTransactions"));
 
 // ── Shared Placeholder Pages ──────────────────────────────────────────────────
 function AuditPage() {
@@ -99,6 +119,17 @@ function SettingsPage() {
             <p className="text-xs text-slate-400">{s.desc}</p>
           </div>
         ))}
+      </div>
+    </div>
+  );
+}
+
+// ── Mobile App Shell (wraps mobile pages in a phone-frame on desktop) ─────────
+function MobileShell({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="min-h-screen flex items-center justify-center" style={{ background: "#0A0A1A" }}>
+      <div className="w-full max-w-[430px] min-h-screen relative">
+        {children}
       </div>
     </div>
   );
@@ -199,8 +230,6 @@ function Router() {
         <Route path="/tenant/settings">
           <TenantLayout><TenantSettings /></TenantLayout>
         </Route>
-
-        {/* ── Tenant Agent Panels (within tenant layout) */}
         <Route path="/tenant/agents/conversational">
           <TenantLayout><ConversationalAgent /></TenantLayout>
         </Route>
@@ -224,6 +253,58 @@ function Router() {
         </Route>
         <Route path="/tenant/agents/smartdashboard">
           <TenantLayout><SmartDashboard /></TenantLayout>
+        </Route>
+
+        {/* ── Web Banking Portal (/banking/*) ────────────────────────────────── */}
+        <Route path="/banking">
+          <Redirect to="/banking/login" />
+        </Route>
+        <Route path="/banking/login">
+          <WebLogin />
+        </Route>
+        <Route path="/banking/dashboard">
+          <WebBankingLayout><WebDashboard /></WebBankingLayout>
+        </Route>
+        <Route path="/banking/transactions">
+          <WebBankingLayout><WebTransactions /></WebBankingLayout>
+        </Route>
+        <Route path="/banking/transfer">
+          <WebBankingLayout><WebTransfer /></WebBankingLayout>
+        </Route>
+        <Route path="/banking/payments">
+          <WebBankingLayout><WebPayments /></WebBankingLayout>
+        </Route>
+        <Route path="/banking/cards">
+          <WebBankingLayout><WebCards /></WebBankingLayout>
+        </Route>
+        <Route path="/banking/loans">
+          <WebBankingLayout><WebLoans /></WebBankingLayout>
+        </Route>
+        <Route path="/banking/assistant">
+          <WebBankingLayout><WebAssistant /></WebBankingLayout>
+        </Route>
+
+        {/* ── Mobile Banking Super-App (/app/*) ──────────────────────────────── */}
+        <Route path="/app">
+          <Redirect to="/app/home" />
+        </Route>
+        <Route path="/app/home">
+          <MobileShell><MobileHome /></MobileShell>
+        </Route>
+        <Route path="/app/transfer">
+          <MobileShell><MobileTransfer /></MobileShell>
+        </Route>
+        <Route path="/app/cards">
+          <MobileShell><MobileCards /></MobileShell>
+        </Route>
+        <Route path="/app/loans">
+          <MobileShell><MobileLoans /></MobileShell>
+        </Route>
+        <Route path="/app/assistant">
+          <MobileShell><MobileAssistant /></MobileShell>
+        </Route>
+        <Route path="/app/transactions">
+          <MobileShell><MobileTransactions /></MobileShell>
         </Route>
 
         <Route path="/404" component={NotFound} />

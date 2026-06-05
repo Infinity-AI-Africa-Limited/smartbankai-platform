@@ -8,7 +8,7 @@ import {
   LayoutDashboard, Server, Users, Activity, ShieldCheck, CreditCard,
   BarChart3, MessageSquare, AlertTriangle, Database, Network, Settings,
   ChevronDown, ChevronRight, Menu, X, Bell, LogOut, Building2,
-  Cpu, Globe, Zap, FileText, TrendingUp
+  Cpu, Globe, Zap, FileText, TrendingUp, Monitor, Smartphone
 } from "lucide-react";
 
 const TENANT_ID = 4; // First Bank Nigeria demo tenant
@@ -208,6 +208,18 @@ export default function TenantLayout({ children }: { children: React.ReactNode }
             </button>
           </div>
         )}
+        <Link href="/banking/login">
+          <div className="flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer text-xs transition-all hover:bg-white/5" style={{ color: "#8892A4" }}>
+            <Monitor size={12} />
+            {!collapsed && "Web Banking Portal"}
+          </div>
+        </Link>
+        <Link href="/app/home">
+          <div className="flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer text-xs transition-all hover:bg-white/5" style={{ color: "#8892A4" }}>
+            <Smartphone size={12} />
+            {!collapsed && "Mobile Super-App"}
+          </div>
+        </Link>
         <Link href="/dashboard">
           <div className="flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer text-xs transition-all" style={{ color: "#8892A4" }}>
             <LayoutDashboard size={12} />

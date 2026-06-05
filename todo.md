@@ -98,3 +98,70 @@
 ### Super-Admin Integration
 - [x] Demo data visible in Infinity AI super-admin portal (tenants, transactions, agent events)
 - [x] Tenant health metrics flowing to super-admin monitoring dashboard
+
+## Omnichannel Digital Banking Platform (Phase 3)
+
+### Web Banking Portal (/web/*)
+- [ ] Web banking login page with OTP simulation and AI fraud check
+- [ ] Web banking dashboard: account overview, balance, AI financial health score, spending insights
+- [ ] Accounts page: account details, statement, mini-statement
+- [ ] Transaction history: searchable, filterable ledger with AI fraud flags and category labels
+- [ ] Fund transfer: intra-bank, inter-bank (NIP), scheduled transfers with AI anomaly detection
+- [ ] Bill payments: utilities, airtime, data, DSTV with AI spending recommendations
+- [ ] Cards management: virtual/physical card controls, freeze/unfreeze, spending limits
+- [ ] Loan application: AI-powered credit scoring, instant decision, disbursement
+- [ ] AI Financial Assistant: LLM-powered chat embedded in web portal
+- [ ] Notifications centre: AI-generated alerts, fraud warnings, spending insights
+- [ ] Profile & settings: KYC status, security settings, notification preferences
+
+### Mobile Banking Super-App (/mobile/*)
+- [ ] Mobile app shell: bottom navigation, mobile-first layout, app-like experience
+- [ ] Mobile home screen: balance card, quick actions, AI insights feed, recent transactions
+- [ ] Mobile accounts: account switcher, balance reveal, account details
+- [ ] Mobile send money: contact picker, recent recipients, AI fraud warning overlay
+- [ ] Mobile payments: QR code payment simulation, bill pay, airtime top-up
+- [ ] Mobile cards: card carousel, controls, transaction limits
+- [ ] Mobile loans: loan calculator, application flow, repayment schedule
+- [ ] Mobile AI chat assistant: floating chat bubble, LLM-powered
+- [ ] Mobile notifications: push notification feed with AI-categorised alerts
+- [ ] Mobile profile: biometric settings, KYC, security centre
+
+### Channel-to-Agent Integration
+- [ ] All 8 agents powering features in both web and mobile channels
+- [ ] Demo data from admin portal reflected in both channels (same transactions, customers, alerts)
+- [ ] Channel selector and cross-portal navigation links
+
+## Omnichannel Build — Completed Items
+
+### Web Banking Portal (/banking/*)
+- [x] WebBankingLayout with responsive header/nav
+- [x] WebLogin page with OTP simulation and AI fraud check
+- [x] WebDashboard: account overview, balance, AI financial health score, spending insights
+- [x] WebTransactions: searchable, filterable ledger with AI fraud flags
+- [x] WebTransfer: intra/inter-bank transfers with AI anomaly detection
+- [x] WebPayments: utilities, airtime, data, DSTV bill payments
+- [x] WebCards: virtual/physical card controls, freeze/unfreeze, spending limits
+- [x] WebLoans: AI-powered credit scoring, instant decision, disbursement
+- [x] WebAssistant: LLM-powered AI Financial Assistant chat
+
+### Mobile Banking Super-App (/app/*)
+- [x] MobileAppLayout with bottom navigation, mobile-first layout
+- [x] MobileHome: balance card, quick actions, AI insights feed, recent transactions
+- [x] MobileTransfer: contact picker, recent recipients, AI fraud warning overlay
+- [x] MobileCards: card carousel, controls, transaction limits
+- [x] MobileLoans: loan calculator, application flow, repayment schedule
+- [x] MobileAssistant: floating chat bubble, LLM-powered
+- [x] MobileTransactions: transaction ledger with AI flags
+
+### Cross-Portal Navigation
+- [x] TenantLayout footer: Web Banking Portal link + Mobile Super-App link
+- [x] AdminLayout footer: Web Banking Portal link + Mobile Super-App link
+- [x] All 4 portals navigable from each other via sidebar links
+
+### Scalability Hardening
+- [x] 36 composite DB indexes applied
+- [x] Connection pooling (server/_core/scale.ts)
+- [x] LRU cache with TTL
+- [x] API rate limiting
+- [x] React.lazy() code splitting into 7 chunks
+- [x] SCALABILITY.md architecture document
