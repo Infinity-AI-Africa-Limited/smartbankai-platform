@@ -199,6 +199,6 @@
 ## Claude Code Production-Hardening Handoff
 - [x] Create a comprehensive implementation, architecture, validation, risk, and deployment handoff document
 - [x] Commit and push the handoff document to the ML review branch for Claude Code
-- [ ] Add repository-level CLAUDE.md production-hardening instructions to both the platform and ML repositories
-- [ ] Publish the platform and ML Claude-context branches to both the MistaRichMan and Infinity AI organisation mirrors
+- [x] Add repository-level CLAUDE.md production-hardening instructions to both the platform and ML repositories
+- [x] Publish the platform and ML Claude-context branches to both the MistaRichMan and Infinity AI organisation mirrors
 - [ ] Provide the Claude Code startup prompt and pull-request review order
