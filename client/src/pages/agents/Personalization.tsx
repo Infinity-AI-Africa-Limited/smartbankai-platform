@@ -1,8 +1,11 @@
 import { AgentBadge } from "@/components/AgentBadge";
 import { StatCard } from "@/components/ui/stat-card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { trpc } from "@/lib/trpc";
 import { Globe, Users, Target, TrendingUp, Sparkles } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
+import { useState } from "react";
 
 const segmentData = [
   { segment: "Mass Market", users: 45000, products: 12 },
@@ -25,6 +28,26 @@ const productRecs = [
 const COLORS = ["#2563EB", "#06B6D4", "#F59E0B", "#10B981", "#8B5CF6", "#F47558"];
 
 export default function Personalization() {
+  const [advisory, setAdvisory] = useState<{ recommendation?: string; status: string } | null>(null);
+  const recommendationMutation = trpc.aiAdvisory.recommendation.useMutation({
+    onSuccess: (result) => setAdvisory(result),
+  });
+
+  const generateAdvisory = () => recommendationMutation.mutate({
+    tenantId: 4,
+    payload: {
+      customer_id: "demo-segment-mass-market-001",
+      age_band: "26-35",
+      income_band: "mid",
+      products_held: ["Savings Account", "Debit Card"],
+      channel_preference: "mobile",
+      days_since_last_transaction: 2,
+      monthly_txn_count_3m_avg: 18,
+      complaint_count_12m: 0,
+      account_age_months: 36,
+    },
+  });
+
   return (
     <div className="space-y-6 animate-fade-up">
       <AgentBadge name="Personalization" size="lg" showDesc />
@@ -50,7 +73,20 @@ export default function Personalization() {
           </ResponsiveContainer>
         </div>
         <div className="rounded-xl border border-[#1E2A3A] p-5" style={{ background: "#111827" }}>
-          <h3 className="text-sm font-semibold text-white mb-4">Top Product Recommendations</h3>
+          <div className="flex items-center justify-between gap-3 mb-4">
+            <h3 className="text-sm font-semibold text-white">Top Product Recommendations</h3>
+            <Button size="sm" onClick={generateAdvisory} disabled={recommendationMutation.isPending}
+              className="h-7 text-[10px] gradient-brand text-white">
+              <Sparkles className="h-3 w-3 mr-1" />
+              {recommendationMutation.isPending ? "Analysing" : "Run advisory"}
+            </Button>
+          </div>
+          {advisory && (
+            <div className="mb-4 rounded-lg border border-purple-500/25 bg-purple-500/5 p-3 text-xs">
+              <div className="font-semibold text-purple-300">AI advisory — human review required</div>
+              <div className="mt-1 text-slate-300">{advisory.recommendation ?? "The recommendation service is unavailable; review the customer segment manually."}</div>
+            </div>
+          )}
           <div className="space-y-3">
             {productRecs.map((r, i) => (
               <div key={r.name} className="flex items-center gap-3">

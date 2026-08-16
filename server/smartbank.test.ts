@@ -1,6 +1,11 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { appRouter } from "./routers";
 import type { TrpcContext } from "./_core/context";
+import { getDb } from "./db";
+import { aiDecisionAudits } from "../drizzle/schema";
+import { eq } from "drizzle-orm";
+import { MlGateway, setMlGatewayForTesting } from "./mlGateway";
+import { randomUUID } from "node:crypto";
 
 // ─── Context factories ────────────────────────────────────────────────────────
 function makeClearedCookies() {
@@ -196,6 +201,16 @@ describe("credit", () => {
     expect(result.score).toBeLessThanOrEqual(850);
     expect(["approve", "review", "decline"]).toContain(result.recommendation);
     expect(result.factors.length).toBeGreaterThan(0);
+    expect(result.mlAdvisory.human_review_required).toBe(true);
+    expect(result.mlAdvisory.status).toBe("unavailable");
+
+    const db = await getDb();
+    const audits = db
+      ? await db.select().from(aiDecisionAudits).where(eq(aiDecisionAudits.decisionId, result.mlAdvisory.decision_id))
+      : [];
+    expect(audits).toHaveLength(1);
+    expect(audits[0]?.decisionStatus).toBe("unavailable");
+    expect(audits[0]?.humanReviewRequired).toBe(true);
   });
 
   it("low income to loan ratio produces decline recommendation", async () => {
@@ -208,6 +223,58 @@ describe("credit", () => {
       mobileMoneyScore: 10,
     });
     expect(["decline", "review"]).toContain(result.recommendation);
+  });
+
+  it("records a successful ML advisory result while retaining the human-review gate", async () => {
+    const requestIds: string[] = [];
+    const decisionId = randomUUID();
+    setMlGatewayForTesting(new MlGateway({
+      baseUrl: "https://ml.internal",
+      serviceToken: "test-token",
+      fetchImpl: async (_url, init) => {
+        const body = JSON.parse(String(init?.body));
+        requestIds.push(body.correlation_id);
+        return new Response(JSON.stringify({
+          contract_version: "2026-08-01",
+          correlation_id: body.correlation_id,
+          decision_id: decisionId,
+          request_type: "credit_assessment",
+          status: "advisory",
+          recommendation: "REFER",
+          confidence: 0.72,
+          human_review_required: true,
+          received_at: "2026-08-16T09:00:00.000Z",
+          model: { agent: "credit_risk", model_version: "2026.08.1" },
+        }), { status: 200, headers: { "Content-Type": "application/json" } });
+      },
+    }));
+
+    try {
+      const caller = appRouter.createCaller(makeCtx());
+      const result = await caller.credit.score({
+        applicantName: "Test Customer",
+        customerId: "customer-100",
+        tenantId: 4,
+        monthlyIncome: 250000,
+        requestedAmount: 500000,
+        employmentStatus: "salaried",
+        mobileMoneyScore: 75,
+      });
+
+      expect(requestIds).toHaveLength(1);
+      expect(result.mlAdvisory.status).toBe("advisory");
+      expect(result.mlAdvisory.human_review_required).toBe(true);
+
+      const db = await getDb();
+      const audits = db
+        ? await db.select().from(aiDecisionAudits).where(eq(aiDecisionAudits.decisionId, result.mlAdvisory.decision_id))
+        : [];
+      expect(audits).toHaveLength(1);
+      expect(audits[0]?.decisionStatus).toBe("advisory");
+      expect(audits[0]?.contractVersion).toBe("2026-08-01");
+    } finally {
+      setMlGatewayForTesting(undefined);
+    }
   });
 });
 
@@ -232,6 +299,74 @@ describe("compliance", () => {
     const caller = appRouter.createCaller(makeCtx());
     const logs = await caller.compliance.auditLogs({});
     expect(Array.isArray(logs)).toBe(true);
+  });
+});
+
+// ─── Advisory workflow audit coverage ─────────────────────────────────────────
+describe("advisory workflows", () => {
+  it("persists advisory audit evidence for fraud, AML, recommendation, and assistant flows", async () => {
+    setMlGatewayForTesting(new MlGateway({
+      baseUrl: "https://ml.internal",
+      serviceToken: "test-token",
+      fetchImpl: async (_url, init) => {
+        const body = JSON.parse(String(init?.body));
+        return new Response(JSON.stringify({
+          contract_version: "2026-08-01",
+          correlation_id: body.correlation_id,
+          decision_id: randomUUID(),
+          request_type: body.request_type,
+          status: "advisory",
+          recommendation: "REFER",
+          confidence: 0.7,
+          human_review_required: true,
+          received_at: "2026-08-16T09:00:00.000Z",
+          model: { agent: body.request_type, model_version: "2026.08.1" },
+        }), { status: 200, headers: { "Content-Type": "application/json" } });
+      },
+    }));
+
+    try {
+      const caller = appRouter.createCaller(makeCtx("platform_owner"));
+      const transactionPayload = {
+        transaction_id: `TXN-${Date.now()}`,
+        amount_ngn: 125000,
+        channel: "mobile" as const,
+        hour_of_day: 10,
+        day_of_week: 2,
+      };
+      const [fraud, aml, recommendation, assistant] = await Promise.all([
+        caller.fraud.assess({ tenantId: 4, payload: transactionPayload }),
+        caller.compliance.analyseTransaction({ tenantId: 4, payload: transactionPayload }),
+        caller.aiAdvisory.recommendation({
+          tenantId: 4,
+          payload: {
+            customer_id: `customer-${Date.now()}`,
+            products_held: ["Savings"],
+            channel_preference: "mobile",
+            account_age_months: 12,
+          },
+        }),
+        caller.aiAdvisory.assistant({
+          tenantId: 4,
+          payload: { session_id: `session-${Date.now()}`, message: "Show available account options" },
+        }),
+      ]);
+
+      for (const result of [fraud, aml, recommendation, assistant]) {
+        expect(result.status).toBe("advisory");
+        expect(result.human_review_required).toBe(true);
+      }
+
+      const db = await getDb();
+      const decisionIds = [fraud, aml, recommendation, assistant].map((result) => result.decision_id);
+      const audits = db
+        ? await Promise.all(decisionIds.map((id) => db.select().from(aiDecisionAudits).where(eq(aiDecisionAudits.decisionId, id))))
+        : [];
+      expect(audits).toHaveLength(4);
+      for (const audit of audits) expect(audit).toHaveLength(1);
+    } finally {
+      setMlGatewayForTesting(undefined);
+    }
   });
 });
 

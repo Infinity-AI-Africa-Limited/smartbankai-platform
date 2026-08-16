@@ -10,6 +10,7 @@ import {
   json,
   bigint,
   float,
+  index,
 } from "drizzle-orm/mysql-core";
 
 // ─── Users ────────────────────────────────────────────────────────────────────
@@ -271,6 +272,38 @@ export const auditLogs = mysqlTable("audit_logs", {
 });
 
 export type AuditLog = typeof auditLogs.$inferSelect;
+
+// ─── AI Decision Audits (append-only) ─────────────────────────────────────────
+// The original recommendation is never updated or deleted. Human reviews should
+// be recorded as separate events so the full decision trail remains reconstructable.
+export const aiDecisionAudits = mysqlTable("ai_decision_audits", {
+  id: int("id").autoincrement().primaryKey(),
+  decisionId: varchar("decisionId", { length: 64 }).notNull().unique(),
+  correlationId: varchar("correlationId", { length: 64 }).notNull(),
+  tenantId: int("tenantId").notNull(),
+  requestedByUserId: int("requestedByUserId"),
+  requestType: varchar("requestType", { length: 64 }).notNull(),
+  contractVersion: varchar("contractVersion", { length: 32 }).notNull(),
+  agentName: varchar("agentName", { length: 100 }),
+  modelName: varchar("modelName", { length: 100 }),
+  modelVersion: varchar("modelVersion", { length: 100 }),
+  decisionStatus: mysqlEnum("decisionStatus", ["advisory", "unavailable", "rejected"]).notNull(),
+  recommendation: text("recommendation"),
+  confidence: float("confidence"),
+  humanReviewRequired: boolean("humanReviewRequired").default(true).notNull(),
+  inputDigest: varchar("inputDigest", { length: 128 }).notNull(),
+  minimisedInput: json("minimisedInput").notNull(),
+  responseData: json("responseData").notNull(),
+  latencyMs: int("latencyMs"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+}, (table) => [
+  index("ai_decision_audits_tenant_created_idx").on(table.tenantId, table.createdAt),
+  index("ai_decision_audits_correlation_idx").on(table.correlationId),
+  index("ai_decision_audits_request_type_created_idx").on(table.requestType, table.createdAt),
+]);
+
+export type AiDecisionAudit = typeof aiDecisionAudits.$inferSelect;
+export type InsertAiDecisionAudit = typeof aiDecisionAudits.$inferInsert;
 
 // ─── Billing ──────────────────────────────────────────────────────────────────
 export const billingRecords = mysqlTable("billing_records", {

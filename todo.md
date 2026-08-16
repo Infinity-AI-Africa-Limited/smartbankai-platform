@@ -165,3 +165,18 @@
 - [x] API rate limiting
 - [x] React.lazy() code splitting into 7 chunks
 - [x] SCALABILITY.md architecture document
+
+## Production ML Integration
+- [x] Mirror the SmartBank AI platform repository to Infinity-AI-Africa-Limited and designate the organisation main branch as authoritative
+- [x] Define v1 versioned OpenAPI contract and shared request/response schemas for fraud, credit, AML, recommendation, and assistant capabilities
+- [x] Add a server-only AI gateway with token authentication, request minimisation, timeouts, circuit breakers, and advisory-only outputs
+- [x] Persist immutable AI decision audit events with model and contract version metadata
+- [x] Add backend integration procedures that route platform workflows through the ML orchestrator
+- [x] Wire existing fraud, credit, AML, recommendation, and assistant workflows to the advisory gateway without removing safe local fallbacks
+- [x] Add workflow-level tests proving advisory calls create immutable audit records for successful and unavailable outcomes
+- [x] Add platform contract tests against a pinned ML orchestrator version
+- [x] Configure independent application and ML CI/CD workflows with compatibility checks and rollback guidance
+- [x] Connect the existing personalization recommendation experience to the advisory ML gateway
+- [x] Replace or extend the operational fraud and AML product flows with orchestrator-backed advisory calls
+- [x] Add workflow-level audit tests for fraud, AML, recommendation, and assistant paths
+- [ ] Deliver review branches and pull requests for Claude Code production hardening
