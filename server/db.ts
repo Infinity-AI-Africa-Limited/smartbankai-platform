@@ -9,6 +9,7 @@ import {
   auditLogs, billingRecords, chatMessages,
   agentTypes,
   customers, channelSessions, agentEvents, dataSources,
+  aiDecisionAudits,
 } from "../drizzle/schema";
 import { ENV } from "./_core/env";
 
@@ -230,6 +231,13 @@ export async function createAuditLog(data: typeof auditLogs.$inferInsert) {
   const db = await getDb();
   if (!db) return;
   await db.insert(auditLogs).values(data);
+}
+
+// ─── AI Decision Audits (append-only) ─────────────────────────────────────────
+export async function createAiDecisionAudit(data: typeof aiDecisionAudits.$inferInsert) {
+  const db = await getDb();
+  if (!db) throw new Error("DB unavailable: AI advisory results must be audited before use");
+  await db.insert(aiDecisionAudits).values(data);
 }
 
 // ─── Billing ──────────────────────────────────────────────────────────────────

@@ -1,0 +1,12 @@
+{
+  "contractVersion": "2026-08-01",
+  "mlRepository": "Infinity-AI-Africa-Limited/smartbankAI-ml",
+  "pinnedMlCommit": "77c3adc",
+  "requiredEndpoint": "/v1/route",
+  "requiredHealthEndpoint": "/health",
+  "releasePolicy": {
+    "platform": "The platform may deploy only after its tests pass against this exact contract file.",
+    "mlServices": "ML services may deploy independently only when their OpenAPI contract remains byte-for-byte compatible or the platform manifest is updated in a reviewed pull request.",
+    "rollback": "Rollback either repository to the previously approved commit while retaining the same supported contract version."
+  }
+}

@@ -20,9 +20,14 @@ const statusColors: Record<string, string> = {
 
 export default function FraudDetection() {
   const [threshold, setThreshold] = useState([65]);
+  const [advisoryMessage, setAdvisoryMessage] = useState<string | null>(null);
   const txQuery = trpc.fraud.transactions.useQuery({ limit: 30 });
   const flaggedQuery = trpc.fraud.flagged.useQuery({});
   const statsQuery = trpc.fraud.stats.useQuery();
+  const assessMutation = trpc.fraud.assess.useMutation({
+    onSuccess: (result) => setAdvisoryMessage(result.recommendation ?? "Fraud advisory is unavailable; a human review is required."),
+    onError: (error) => toast.error(error.message),
+  });
 
   const stats = statsQuery.data;
   const transactions = txQuery.data ?? [];
@@ -34,6 +39,25 @@ export default function FraudDetection() {
     status: t.fraudStatus,
   }));
 
+  const assessFirstFlagged = () => {
+    const transaction = flagged[0];
+    if (!transaction) return toast.info("No flagged transaction is available for advisory analysis");
+    const createdAt = new Date(transaction.createdAt);
+    const channelMap: Record<string, "web" | "mobile" | "ussd" | "pos" | "atm" | "branch" | "api"> = {
+      web_banking: "web", mobile_app: "mobile", web: "web", mobile: "mobile", ussd: "ussd", pos: "pos", atm: "atm", branch: "branch", api: "api",
+    };
+    assessMutation.mutate({
+      tenantId: Number(transaction.tenantId ?? 4),
+      payload: {
+        transaction_id: String(transaction.transactionRef),
+        amount_ngn: Number(transaction.amount),
+        channel: channelMap[String(transaction.channel)] ?? "mobile",
+        hour_of_day: createdAt.getHours(),
+        day_of_week: createdAt.getDay(),
+      },
+    });
+  };
+
   return (
     <div className="space-y-6 animate-fade-up">
       <div className="flex items-center justify-between">
@@ -41,6 +65,9 @@ export default function FraudDetection() {
         <Button variant="ghost" size="sm" className="text-slate-400 hover:text-white gap-1.5 text-xs"
           onClick={() => { txQuery.refetch(); flaggedQuery.refetch(); toast.success("Feed refreshed"); }}>
           <RefreshCw className="h-3.5 w-3.5" /> Refresh
+        </Button>
+        <Button size="sm" className="gradient-brand text-white text-xs h-8" onClick={assessFirstFlagged} disabled={assessMutation.isPending}>
+          <ShieldAlert className="h-3.5 w-3.5 mr-1" /> {assessMutation.isPending ? "Analysing" : "Review flagged"}
         </Button>
       </div>
 
@@ -123,6 +150,7 @@ export default function FraudDetection() {
           </div>
           <Badge className="bg-amber-500/10 text-amber-400 border-amber-500/20 text-[10px]">{flagged.length} alerts</Badge>
         </div>
+        {advisoryMessage && <div className="mx-4 mt-4 rounded-lg border border-amber-500/25 bg-amber-500/5 p-3 text-xs text-amber-100">AI advisory — human review required: {advisoryMessage}</div>}
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>

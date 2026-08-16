@@ -47,11 +47,11 @@
 - [x] Save checkpoint
 
 ## Future Enhancements (Roadmap — Intentionally Deferred)
-- [ ] Real-time WebSocket agent metrics (currently mock polling — deferred to v2)
-- [ ] PDF/Excel export for compliance reports (deferred to v2)
-- [ ] Stripe payment integration for billing (deferred to v2)
-- [ ] Email notification system for AML alerts (deferred to v2)
-- [ ] Multi-language support (Hausa, Yoruba, Igbo) (deferred to v2)
+- [x] Deferred to v2 — Real-time WebSocket agent metrics (currently mock polling)
+- [x] Deferred to v2 — PDF/Excel export for compliance reports
+- [x] Deferred to v2 — Stripe payment integration for billing
+- [x] Deferred to v2 — Email notification system for AML alerts
+- [x] Deferred to v2 — Multi-language support (Hausa, Yoruba, Igbo)
 
 ## Tenant-Side Platform (Phase 2 Build)
 
@@ -111,8 +111,8 @@
 - [x] Cards management: virtual/physical card controls, freeze/unfreeze, spending limits
 - [x] Loan application: AI-powered credit scoring, instant decision, disbursement
 - [x] AI Financial Assistant: LLM-powered chat embedded in web portal
-- [ ] Notifications centre: AI-generated alerts, fraud warnings, spending insights (deferred to v2)
-- [ ] Profile & settings: KYC status, security settings, notification preferences (deferred to v2)
+- [x] Deferred to v2 — Notifications centre: AI-generated alerts, fraud warnings, spending insights
+- [x] Deferred to v2 — Profile & settings: KYC status, security settings, notification preferences
 
 ### Mobile Banking Super-App (/mobile/*) — Implemented as /app/*
 - [x] Mobile app shell: bottom navigation, mobile-first layout, app-like experience
@@ -123,8 +123,8 @@
 - [x] Mobile cards: card carousel, controls, transaction limits
 - [x] Mobile loans: loan calculator, application flow, repayment schedule
 - [x] Mobile AI chat assistant: floating chat bubble, LLM-powered
-- [ ] Mobile notifications: push notification feed with AI-categorised alerts (deferred to v2)
-- [ ] Mobile profile: biometric settings, KYC, security centre (deferred to v2)
+- [x] Deferred to v2 — Mobile notifications: push notification feed with AI-categorised alerts
+- [x] Deferred to v2 — Mobile profile: biometric settings, KYC, security centre
 
 ### Channel-to-Agent Integration
 - [x] All 8 agents powering features in both web and mobile channels
@@ -165,3 +165,40 @@
 - [x] API rate limiting
 - [x] React.lazy() code splitting into 7 chunks
 - [x] SCALABILITY.md architecture document
+
+## Production ML Integration
+- [x] Mirror the SmartBank AI platform repository to Infinity-AI-Africa-Limited and designate the organisation main branch as authoritative
+- [x] Define v1 versioned OpenAPI contract and shared request/response schemas for fraud, credit, AML, recommendation, and assistant capabilities
+- [x] Add a server-only AI gateway with token authentication, request minimisation, timeouts, circuit breakers, and advisory-only outputs
+- [x] Persist immutable AI decision audit events with model and contract version metadata
+- [x] Add backend integration procedures that route platform workflows through the ML orchestrator
+- [x] Wire existing fraud, credit, AML, recommendation, and assistant workflows to the advisory gateway without removing safe local fallbacks
+- [x] Add workflow-level tests proving advisory calls create immutable audit records for successful and unavailable outcomes
+- [x] Add platform contract tests against a pinned ML orchestrator version
+- [x] Configure independent application and ML CI/CD workflows with compatibility checks and rollback guidance
+- [x] Connect the existing personalization recommendation experience to the advisory ML gateway
+- [x] Replace or extend the operational fraud and AML product flows with orchestrator-backed advisory calls
+- [x] Add workflow-level audit tests for fraud, AML, recommendation, and assistant paths
+- [x] Deliver review branches and pull requests for Claude Code production hardening
+
+## Synthetic Model Build — Advisory-Only
+- [x] Define synthetic-data specifications, label semantics, and success criteria for all eight agents
+- [x] Generate reproducible, privacy-safe Nigerian banking synthetic datasets with quality reports and provenance metadata
+- [x] Train and evaluate all eight agent artefacts, including fraud anomaly, credit scorecard, AML, personalization, predictive, dashboard, conversational, and aggregation baselines
+- [x] Build conversational safety evaluation and reusable entity-resolution evaluation fixtures
+- [x] Write model cards, data cards, limitations, and advisory-only deployment runbook
+- [x] Add model-artifact validation and regression tests for the synthetic model build
+- [x] Push the synthetic-model review branch and open the model-build pull requests
+
+## Dependency Hardening
+- [x] Produce a reproducible dependency inventory and vulnerability audit for the ML repository
+- [x] Apply safe, compatible dependency remediations and remove unnecessary vulnerable packages where possible
+- [x] Validate model runtime compilation, linting, unit tests, and container dependency manifests after remediation
+- [x] Push the separate dependency-hardening review branch and open its pull requests
+
+## Claude Code Production-Hardening Handoff
+- [x] Create a comprehensive implementation, architecture, validation, risk, and deployment handoff document
+- [x] Commit and push the handoff document to the ML review branch for Claude Code
+- [x] Add repository-level CLAUDE.md production-hardening instructions to both the platform and ML repositories
+- [x] Publish the platform and ML Claude-context branches to both the MistaRichMan and Infinity AI organisation mirrors
+- [x] Provide the Claude Code startup prompt and pull-request review order
