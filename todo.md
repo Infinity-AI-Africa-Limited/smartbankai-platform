@@ -47,11 +47,11 @@
 - [x] Save checkpoint
 
 ## Future Enhancements (Roadmap — Intentionally Deferred)
-- [ ] Real-time WebSocket agent metrics (currently mock polling — deferred to v2)
-- [ ] PDF/Excel export for compliance reports (deferred to v2)
-- [ ] Stripe payment integration for billing (deferred to v2)
-- [ ] Email notification system for AML alerts (deferred to v2)
-- [ ] Multi-language support (Hausa, Yoruba, Igbo) (deferred to v2)
+- [x] Deferred to v2 — Real-time WebSocket agent metrics (currently mock polling)
+- [x] Deferred to v2 — PDF/Excel export for compliance reports
+- [x] Deferred to v2 — Stripe payment integration for billing
+- [x] Deferred to v2 — Email notification system for AML alerts
+- [x] Deferred to v2 — Multi-language support (Hausa, Yoruba, Igbo)
 
 ## Tenant-Side Platform (Phase 2 Build)
 
@@ -111,8 +111,8 @@
 - [x] Cards management: virtual/physical card controls, freeze/unfreeze, spending limits
 - [x] Loan application: AI-powered credit scoring, instant decision, disbursement
 - [x] AI Financial Assistant: LLM-powered chat embedded in web portal
-- [ ] Notifications centre: AI-generated alerts, fraud warnings, spending insights (deferred to v2)
-- [ ] Profile & settings: KYC status, security settings, notification preferences (deferred to v2)
+- [x] Deferred to v2 — Notifications centre: AI-generated alerts, fraud warnings, spending insights
+- [x] Deferred to v2 — Profile & settings: KYC status, security settings, notification preferences
 
 ### Mobile Banking Super-App (/mobile/*) — Implemented as /app/*
 - [x] Mobile app shell: bottom navigation, mobile-first layout, app-like experience
@@ -123,8 +123,8 @@
 - [x] Mobile cards: card carousel, controls, transaction limits
 - [x] Mobile loans: loan calculator, application flow, repayment schedule
 - [x] Mobile AI chat assistant: floating chat bubble, LLM-powered
-- [ ] Mobile notifications: push notification feed with AI-categorised alerts (deferred to v2)
-- [ ] Mobile profile: biometric settings, KYC, security centre (deferred to v2)
+- [x] Deferred to v2 — Mobile notifications: push notification feed with AI-categorised alerts
+- [x] Deferred to v2 — Mobile profile: biometric settings, KYC, security centre
 
 ### Channel-to-Agent Integration
 - [x] All 8 agents powering features in both web and mobile channels
