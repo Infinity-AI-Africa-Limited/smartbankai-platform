@@ -195,3 +195,10 @@
 - [x] Apply safe, compatible dependency remediations and remove unnecessary vulnerable packages where possible
 - [x] Validate model runtime compilation, linting, unit tests, and container dependency manifests after remediation
 - [x] Push the separate dependency-hardening review branch and open its pull requests
+
+## Claude Code Production-Hardening Handoff
+- [x] Create a comprehensive implementation, architecture, validation, risk, and deployment handoff document
+- [x] Commit and push the handoff document to the ML review branch for Claude Code
+- [ ] Add repository-level CLAUDE.md production-hardening instructions to both the platform and ML repositories
+- [ ] Publish the platform and ML Claude-context branches to both the MistaRichMan and Infinity AI organisation mirrors
+- [ ] Provide the Claude Code startup prompt and pull-request review order
