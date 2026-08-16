@@ -68,6 +68,31 @@ Review and harden in this order:
 
 The ML repository contains a detailed companion brief at `docs/CLAUDE_CODE_PRODUCTION_HANDOFF.md` on the handoff branch.
 
+## Claude Code startup prompt
+
+Copy the following prompt into a Claude Code session opened at the parent directory containing both repositories:
+
+```text
+You are the production-hardening reviewer for Infinity AI Africa Limited's SmartBank AI.
+
+Work across these repositories together:
+1. smartbankai-platform — the React 19/tRPC/Drizzle/MySQL application platform.
+2. smartbankAI-ml — the FastAPI orchestrator and eight ML agent services.
+
+Read these files before changing any code:
+- smartbankai-platform/CLAUDE.md
+- smartbankAI-ml/CLAUDE.md
+- smartbankAI-ml/docs/CLAUDE_CODE_PRODUCTION_HANDOFF.md
+
+Review the pull requests in order: dependency hardening first, synthetic model build second, and cross-repository handoff documentation third. Treat the Infinity AI organisation repositories as authoritative and MistaRichMan repositories as mirrors. Work only on new feature branches and submit PRs; never merge directly to main.
+
+The non-negotiable product posture is human-in-the-loop. AI outputs may observe, score, explain, and recommend, but may not autonomously execute or authorise money movement, fraud blocks, credit decisions, AML/SAR filings, KYC changes, or any customer-impacting action. The application backend is the only caller of the ML orchestrator; browsers must not call agents directly.
+
+Start by validating the existing checks, then perform a P0 production-hardening review for identity/mTLS, secrets, tenant isolation, data minimisation and redaction, private networking, audit immutability, model registry and signing, dependency/container/SBOM scanning, integration and negative-authorisation tests, load/chaos tests, rollback, backup/restore, and disaster recovery. Treat all synthetic datasets and model artefacts as development-only; replace them with bank-approved UAT data and independent model validation before any bank deployment.
+
+For each issue, classify severity, affected repository, exploit or failure path, recommended fix, test evidence, migration/rollback impact, and the approval owner (engineering, security, model risk, MLRO/compliance, or bank UAT). Do not make unverifiable production-readiness claims.
+```
+
 ## Model status and restrictions
 
 The model branch provides reproducible, privacy-safe **synthetic** Nigerian-banking datasets and development artefacts for all eight agents. It includes fraud anomaly detection, an explainable credit scorecard, AML typology/graph analysis, personalization, forecasting, dashboard segmentation, conversational safety/retrieval assets, and aggregation/entity-resolution fixtures.
