@@ -179,4 +179,4 @@
 - [x] Connect the existing personalization recommendation experience to the advisory ML gateway
 - [x] Replace or extend the operational fraud and AML product flows with orchestrator-backed advisory calls
 - [x] Add workflow-level audit tests for fraud, AML, recommendation, and assistant paths
-- [ ] Deliver review branches and pull requests for Claude Code production hardening
+- [x] Deliver review branches and pull requests for Claude Code production hardening
