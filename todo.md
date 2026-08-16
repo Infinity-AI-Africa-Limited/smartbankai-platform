@@ -180,3 +180,18 @@
 - [x] Replace or extend the operational fraud and AML product flows with orchestrator-backed advisory calls
 - [x] Add workflow-level audit tests for fraud, AML, recommendation, and assistant paths
 - [x] Deliver review branches and pull requests for Claude Code production hardening
+
+## Synthetic Model Build — Advisory-Only
+- [x] Define synthetic-data specifications, label semantics, and success criteria for all eight agents
+- [x] Generate reproducible, privacy-safe Nigerian banking synthetic datasets with quality reports and provenance metadata
+- [x] Train and evaluate all eight agent artefacts, including fraud anomaly, credit scorecard, AML, personalization, predictive, dashboard, conversational, and aggregation baselines
+- [x] Build conversational safety evaluation and reusable entity-resolution evaluation fixtures
+- [x] Write model cards, data cards, limitations, and advisory-only deployment runbook
+- [x] Add model-artifact validation and regression tests for the synthetic model build
+- [x] Push the synthetic-model review branch and open the model-build pull requests
+
+## Dependency Hardening
+- [x] Produce a reproducible dependency inventory and vulnerability audit for the ML repository
+- [x] Apply safe, compatible dependency remediations and remove unnecessary vulnerable packages where possible
+- [x] Validate model runtime compilation, linting, unit tests, and container dependency manifests after remediation
+- [x] Push the separate dependency-hardening review branch and open its pull requests
