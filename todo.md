@@ -202,3 +202,31 @@
 - [x] Add repository-level CLAUDE.md production-hardening instructions to both the platform and ML repositories
 - [x] Publish the platform and ML Claude-context branches to both the MistaRichMan and Infinity AI organisation mirrors
 - [x] Provide the Claude Code startup prompt and pull-request review order
+
+## ML Orchestrator Deployment and Gateway Activation
+- [x] Reconcile the deployment guide with the implemented server-only AI gateway and orchestrator configuration
+- [x] Correct the v1 deployment smoke-test example to include required metadata and exclude prohibited account identifiers
+- [x] Document that the current implementation uses a shared service token with constant-time comparison, pending mTLS or signed-request hardening
+- [x] Validate an isolated local authenticated v1 smoke test with a disposable in-memory development token
+- [x] Select and document the local-Docker versus private-staging deployment sequence
+- [x] Connect the Docker-enabled laptop workspace for assisted local Compose execution
+- [x] Generate and inject a disposable local development token into the ML Compose stack
+- [x] Correct uppercase Docker image tags in the ML Compose configuration and add a regression check
+- [x] Correct uppercase SmartBank base-image references in all ML Dockerfiles and add a build regression check
+- [x] Build the shared ML base image before dependent agent images during local Compose validation
+- [x] Correct non-root model-directory creation in ML Dockerfiles and verify the full Compose image build
+- [x] Replace the oversized GPU-oriented conversational dependency path with a CPU-only local Docker profile
+- [x] Correct Python package import paths so the conversational service starts successfully in its production container layout
+- [x] Exclude the image-only base-builder service from runtime Compose startup while preserving agent dependency health ordering
+- [x] Gate external conversational RAG initialisation behind an explicit staging/production flag so local synthetic validation starts deterministically
+- [x] Run the full Docker Compose ML stack on the Docker-enabled developer laptop
+- [x] Record the successful local eight-agent health and advisory-route validation evidence
+- [ ] Generate or transfer the synthetic model artefacts into the laptop’s read-only agent model mounts and verify `model_loaded: true`
+- [ ] Run the reproducible synthetic model build inside a CPU-only Docker training container on the laptop
+- [x] Enforce LF line endings for Linux-executed scripts mounted from the Windows development workspace
+- [ ] Run the image-internal Docker training workflow successfully in private staging and confirm artefacts are copied into each `agents/*/models` mount
+- [x] Complete one time-boxed CPU-only local training-image run; otherwise move artefact generation to private staging
+- [ ] Verify post-build staging health endpoints report `model_loaded: true` for relevant agents and document the evidence
+- [ ] Configure the platform with the development-only internal orchestrator URL and service token
+- [ ] Verify the platform-to-orchestrator advisory path, immutable audit events, and safe unavailable fallback
+- [x] Document the separate private-staging and bank-production deployment prerequisites

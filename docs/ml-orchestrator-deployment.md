@@ -23,6 +23,8 @@ The result is a 64-character value. Store it in the organisation's approved secr
 
 Do not put the token in source code, a GitHub Actions YAML file, a container image, or a committed `.env` file. Rotate it at least every 90 days and immediately after any suspected exposure. During development only, a separate, disposable token may be used.
 
+> **Current implementation note:** `SMARTBANK_ML_SERVICE_TOKEN` / `SERVICE_AUTH_TOKEN` is presently a shared service token verified with a constant-time comparison. It is not an HMAC-signed request protocol. Before private staging or bank production, replace or supplement it with mTLS or bank-approved workload identity, short-lived credentials, rotation, and signed-request replay protection.
+
 ## 2. Start a local development deployment
 
 Use this only for internal development and contract testing. It is not a bank production deployment.
@@ -81,15 +83,18 @@ curl --fail-with-body \
     "contract_version": "2026-08-01",
     "request_type": "fraud_check",
     "tenant_id": "4",
-    "correlation_id": "local-smoke-test-001",
+    "correlation_id": "00000000-0000-4000-8000-000000000001",
+    "requested_at": "2026-08-16T12:00:00Z",
     "payload": {
       "transaction_id": "TEST-001",
       "amount_ngn": 10000,
-      "sender_account": "masked",
-      "receiver_account": "masked",
       "channel": "mobile",
       "hour_of_day": 10,
-      "day_of_week": 1
+      "day_of_week": 1,
+      "merchant_category": "groceries",
+      "origin_region": "Lagos",
+      "sender_30d_avg_amount": 8500,
+      "sender_txn_count_1h": 1
     }
   }'
 ```
@@ -110,7 +115,7 @@ Before staging, the infrastructure must supply a private ingress or service mesh
 
 ## 5. Values to enter in the application secrets panel
 
-After you have started the local stack and passed its health check, enter only the following into the application environment settings:
+After you have started a reachable local/private stack and passed its health check, enter only the following into the application environment settings. Do not use a sandbox-local `localhost` endpoint for a separately hosted platform service: the URL must be resolvable from the SmartBank backend runtime itself.
 
 | Secret | Local-development value |
 |---|---|
