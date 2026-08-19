@@ -69,10 +69,17 @@ export async function getUserByOpenId(openId: string) {
   return result[0];
 }
 
-export async function getAllUsers() {
+/** Platform-wide user listing. Reachable only through ownerProcedure. */
+export async function getAllUsersForPlatform() {
   const db = await getDb();
   if (!db) return [];
   return db.select().from(users).orderBy(desc(users.createdAt));
+}
+
+export async function getUsersForTenant(tenantId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(users).where(eq(users.tenantId, tenantId)).orderBy(desc(users.createdAt));
 }
 
 // ─── Tenants ──────────────────────────────────────────────────────────────────
@@ -178,51 +185,91 @@ export async function upsertAgentMetric(data: typeof agentMetrics.$inferInsert) 
 }
 
 // ─── Transactions ─────────────────────────────────────────────────────────────
-export async function getTransactions(tenantId?: number, limit = 50) {
+/** Platform-wide. Reachable only through ownerProcedure or a null tenant scope. */
+export async function getAllTransactionsForPlatform(limit = 50) {
   const db = await getDb();
   if (!db) return [];
-  const q = db.select().from(transactions).orderBy(desc(transactions.createdAt)).limit(limit);
-  if (tenantId) return db.select().from(transactions).where(eq(transactions.tenantId, tenantId)).orderBy(desc(transactions.createdAt)).limit(limit);
-  return q;
+  return db.select().from(transactions).orderBy(desc(transactions.createdAt)).limit(limit);
 }
 
-export async function getFlaggedTransactions(tenantId?: number) {
+export async function getTransactions(tenantId: number, limit = 50) {
   const db = await getDb();
   if (!db) return [];
-  const conditions = [sql`${transactions.fraudStatus} != 'clean'`];
-  if (tenantId) conditions.push(eq(transactions.tenantId, tenantId));
+  return db.select().from(transactions).where(eq(transactions.tenantId, tenantId)).orderBy(desc(transactions.createdAt)).limit(limit);
+}
+
+/** Platform-wide. Reachable only through ownerProcedure or a null tenant scope. */
+export async function getAllFlaggedTransactionsForPlatform() {
+  const db = await getDb();
+  if (!db) return [];
+  return db
+    .select()
+    .from(transactions)
+    .where(sql`${transactions.fraudStatus} != 'clean'`)
+    .orderBy(desc(transactions.createdAt))
+    .limit(100);
+}
+
+export async function getFlaggedTransactions(tenantId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  const conditions = [sql`${transactions.fraudStatus} != 'clean'`, eq(transactions.tenantId, tenantId)];
   return db.select().from(transactions).where(and(...conditions)).orderBy(desc(transactions.createdAt)).limit(100);
 }
 
 // ─── Credit Applications ──────────────────────────────────────────────────────
-export async function getCreditApplications(tenantId?: number) {
+/** Platform-wide. Reachable only through ownerProcedure or a null tenant scope. */
+export async function getAllCreditApplicationsForPlatform() {
   const db = await getDb();
   if (!db) return [];
-  if (tenantId) return db.select().from(creditApplications).where(eq(creditApplications.tenantId, tenantId)).orderBy(desc(creditApplications.createdAt));
   return db.select().from(creditApplications).orderBy(desc(creditApplications.createdAt));
 }
 
-// ─── Compliance Reports ───────────────────────────────────────────────────────
-export async function getComplianceReports(tenantId?: number) {
+export async function getCreditApplications(tenantId: number) {
   const db = await getDb();
   if (!db) return [];
-  if (tenantId) return db.select().from(complianceReports).where(eq(complianceReports.tenantId, tenantId)).orderBy(desc(complianceReports.createdAt));
+  return db.select().from(creditApplications).where(eq(creditApplications.tenantId, tenantId)).orderBy(desc(creditApplications.createdAt));
+}
+
+// ─── Compliance Reports ───────────────────────────────────────────────────────
+/** Platform-wide. Reachable only through ownerProcedure or a null tenant scope. */
+export async function getAllComplianceReportsForPlatform() {
+  const db = await getDb();
+  if (!db) return [];
   return db.select().from(complianceReports).orderBy(desc(complianceReports.createdAt));
 }
 
-// ─── AML Alerts ───────────────────────────────────────────────────────────────
-export async function getAmlAlerts(tenantId?: number) {
+export async function getComplianceReports(tenantId: number) {
   const db = await getDb();
   if (!db) return [];
-  if (tenantId) return db.select().from(amlAlerts).where(eq(amlAlerts.tenantId, tenantId)).orderBy(desc(amlAlerts.createdAt));
+  return db.select().from(complianceReports).where(eq(complianceReports.tenantId, tenantId)).orderBy(desc(complianceReports.createdAt));
+}
+
+// ─── AML Alerts ───────────────────────────────────────────────────────────────
+/** Platform-wide. Reachable only through ownerProcedure or a null tenant scope. */
+export async function getAllAmlAlertsForPlatform() {
+  const db = await getDb();
+  if (!db) return [];
   return db.select().from(amlAlerts).orderBy(desc(amlAlerts.createdAt));
 }
 
-// ─── Audit Logs ───────────────────────────────────────────────────────────────
-export async function getAuditLogs(tenantId?: number, limit = 100) {
+export async function getAmlAlerts(tenantId: number) {
   const db = await getDb();
   if (!db) return [];
-  if (tenantId) return db.select().from(auditLogs).where(eq(auditLogs.tenantId, tenantId)).orderBy(desc(auditLogs.createdAt)).limit(limit);
+  return db.select().from(amlAlerts).where(eq(amlAlerts.tenantId, tenantId)).orderBy(desc(amlAlerts.createdAt));
+}
+
+// ─── Audit Logs ───────────────────────────────────────────────────────────────
+export async function getAuditLogs(tenantId: number, limit = 100) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(auditLogs).where(eq(auditLogs.tenantId, tenantId)).orderBy(desc(auditLogs.createdAt)).limit(limit);
+}
+
+/** Platform-wide audit trail. Reachable only through ownerProcedure. */
+export async function getAllAuditLogsForPlatform(limit = 100) {
+  const db = await getDb();
+  if (!db) return [];
   return db.select().from(auditLogs).orderBy(desc(auditLogs.createdAt)).limit(limit);
 }
 
@@ -233,11 +280,17 @@ export async function createAuditLog(data: typeof auditLogs.$inferInsert) {
 }
 
 // ─── Billing ──────────────────────────────────────────────────────────────────
-export async function getBillingRecords(tenantId?: number) {
+/** Platform-wide billing. Reachable only through ownerProcedure. */
+export async function getAllBillingRecordsForPlatform() {
   const db = await getDb();
   if (!db) return [];
-  if (tenantId) return db.select().from(billingRecords).where(eq(billingRecords.tenantId, tenantId)).orderBy(desc(billingRecords.createdAt));
   return db.select().from(billingRecords).orderBy(desc(billingRecords.createdAt));
+}
+
+export async function getBillingRecords(tenantId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(billingRecords).where(eq(billingRecords.tenantId, tenantId)).orderBy(desc(billingRecords.createdAt));
 }
 
 // ─── Chat Messages ────────────────────────────────────────────────────────────
@@ -276,10 +329,14 @@ export async function getCustomers(tenantId: number, limit = 50, offset = 0) {
   return db.select().from(customers).where(eq(customers.tenantId, tenantId)).orderBy(desc(customers.createdAt)).limit(limit).offset(offset);
 }
 
-export async function getCustomerById(id: number) {
+export async function getCustomerById(id: number, tenantId: number) {
   const db = await getDb();
   if (!db) return undefined;
-  const result = await db.select().from(customers).where(eq(customers.id, id)).limit(1);
+  const result = await db
+    .select()
+    .from(customers)
+    .where(and(eq(customers.id, id), eq(customers.tenantId, tenantId)))
+    .limit(1);
   return result[0];
 }
 
