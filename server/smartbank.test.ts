@@ -2,6 +2,11 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 import { appRouter, resolveTenantScope } from "./routers";
 import type { TrpcContext } from "./_core/context";
 
+// A database is optional locally. CI provisions MySQL, and the guard in the
+// "test environment" block below makes sure these cases are never silently
+// skipped there.
+const hasDatabase = Boolean(process.env.DATABASE_URL);
+
 // ─── Context factories ────────────────────────────────────────────────────────
 function makeClearedCookies() {
   const cleared: Array<{ name: string; options: Record<string, unknown> }> = [];
@@ -107,7 +112,7 @@ describe("tenants", () => {
     ).rejects.toThrow();
   });
 
-  it("platform_owner can create a tenant", async () => {
+  it.skipIf(!hasDatabase)("platform_owner can create a tenant", async () => {
     const caller = appRouter.createCaller(makeCtx("platform_owner"));
     const result = await caller.tenants.create({
       name: "Acme MFB",
@@ -417,5 +422,12 @@ describe("tenant isolation", () => {
       const caller = appRouter.createCaller(makeTenantCtx("tenant_admin", 7));
       await expect(caller.platform.stats()).rejects.toThrow(/Platform owner access required/);
     });
+  });
+});
+
+// ─── Test environment ─────────────────────────────────────────────────────────
+describe("test environment", () => {
+  it("CI provides a database, so database-backed cases are never skipped there", () => {
+    if (process.env.CI) expect(hasDatabase).toBe(true);
   });
 });
