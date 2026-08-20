@@ -10,13 +10,14 @@ import {
   getTenantAgents, upsertTenantAgent, initTenantAgents,
   getLatestAgentMetrics, upsertAgentMetric,
   getTransactions, getFlaggedTransactions,
-  getCreditApplications,
-  getComplianceReports,
-  getAmlAlerts,
-  getAuditLogs, createAuditLog, createAiDecisionAudit,
-  getBillingRecords,
+  getAllTransactionsForPlatform, getAllFlaggedTransactionsForPlatform,
+  getCreditApplications, getAllCreditApplicationsForPlatform,
+  getComplianceReports, getAllComplianceReportsForPlatform,
+  getAmlAlerts, getAllAmlAlertsForPlatform,
+  getAuditLogs, getAllAuditLogsForPlatform, createAuditLog, createAiDecisionAudit,
+  getBillingRecords, getAllBillingRecordsForPlatform,
   getChatHistory, saveChatMessage,
-  getPlatformStats, getAllUsers,
+  getPlatformStats, getAllUsersForPlatform, getUsersForTenant,
   getCustomers, getCustomerById, getCustomerStats,
   getChannelSessions, getChannelStats,
   getAgentEvents, getAgentEventStats,
@@ -47,6 +48,69 @@ const adminProcedure = protectedProcedure.use(({ ctx, next }) => {
 const ownerProcedure = protectedProcedure.use(({ ctx, next }) => {
   if (ctx.user.role !== "platform_owner" && ctx.user.role !== "admin") {
     throw new TRPCError({ code: "FORBIDDEN", message: "Platform owner access required" });
+  }
+  return next({ ctx });
+});
+
+// ─── Tenant isolation ─────────────────────────────────────────────────────────
+// The tenant a request may read is derived from the caller's own user record,
+// never from the request body. Infinity AI platform staff may target a specific
+// tenant, or omit it to work across the estate; a bank's own users are pinned to
+// the tenant they belong to and cannot widen their scope by sending an id.
+const PLATFORM_ROLES = new Set(["platform_owner", "admin"]);
+
+/** Returns the tenant to scope to, or null meaning "all tenants" (platform staff only). */
+export function resolveTenantScope(
+  user: { role: string; tenantId: number | null },
+  requested?: unknown,
+): number | null {
+  const asked =
+    typeof requested === "number" && Number.isInteger(requested) && requested > 0
+      ? requested
+      : undefined;
+
+  if (PLATFORM_ROLES.has(user.role)) return asked ?? null;
+
+  if (user.tenantId == null) {
+    throw new TRPCError({ code: "FORBIDDEN", message: "No tenant is assigned to this account" });
+  }
+  if (asked !== undefined && asked !== user.tenantId) {
+    throw new TRPCError({ code: "FORBIDDEN", message: "Cross-tenant access is not permitted" });
+  }
+  return user.tenantId;
+}
+
+/**
+ * For endpoints that pre-date tenant binding and must stay usable by accounts
+ * with no tenant. An unassigned caller yields null, which callers treat as
+ * "skip the tenant-scoped advisory". A caller naming a tenant that is not
+ * theirs is still refused.
+ */
+export function optionalTenantScope(
+  user: { role: string; tenantId: number | null },
+  requested?: unknown,
+): number | null {
+  if (!PLATFORM_ROLES.has(user.role) && user.tenantId == null) return null;
+  return resolveTenantScope(user, requested);
+}
+
+/** For endpoints that are meaningless without one concrete tenant. */
+function requireTenant(scope: number | null): number {
+  if (scope === null) {
+    throw new TRPCError({ code: "BAD_REQUEST", message: "tenantId is required for this operation" });
+  }
+  return scope;
+}
+
+const tenantProcedure = protectedProcedure.use(async ({ ctx, next, getRawInput }) => {
+  const input = (await getRawInput()) as { tenantId?: unknown } | undefined;
+  return next({ ctx: { ...ctx, tenantScope: resolveTenantScope(ctx.user, input?.tenantId) } });
+});
+
+const tenantAdminProcedure = tenantProcedure.use(({ ctx, next }) => {
+  const adminRoles = ["platform_owner", "admin", "tenant_admin"];
+  if (!adminRoles.includes(ctx.user.role)) {
+    throw new TRPCError({ code: "FORBIDDEN", message: "Insufficient permissions" });
   }
   return next({ ctx });
 });
@@ -133,7 +197,7 @@ export const appRouter = router({
 
   // ─── Platform Stats ────────────────────────────────────────────────────────
   platform: router({
-    stats: protectedProcedure.query(async () => {
+    stats: ownerProcedure.query(async () => {
       return cached("platform:stats", TTL.PLATFORM_STATS, () => getPlatformStats());
     }),
     agentMetrics: protectedProcedure.query(async () => {
@@ -143,14 +207,14 @@ export const appRouter = router({
 
   // ─── Tenants ───────────────────────────────────────────────────────────────
   tenants: router({
-    list: protectedProcedure.query(async () => {
+    list: ownerProcedure.query(async () => {
       return cached("tenants:list", TTL.TENANT_SUMMARY, () => getAllTenants());
     }),
-    stats: protectedProcedure.query(async () => {
+    stats: ownerProcedure.query(async () => {
       return cached("tenants:stats", TTL.TENANT_SUMMARY, () => getTenantStats());
     }),
-    byId: protectedProcedure.input(z.object({ id: z.number() })).query(async ({ input }) => {
-      return getTenantById(input.id);
+    byId: protectedProcedure.input(z.object({ id: z.number() })).query(async ({ input, ctx }) => {
+      return getTenantById(requireTenant(resolveTenantScope(ctx.user, input.id)));
     }),
     create: adminProcedure
       .input(
@@ -193,33 +257,35 @@ export const appRouter = router({
 
   // ─── Agent Management ──────────────────────────────────────────────────────
   agents: router({
-    forTenant: protectedProcedure
+    forTenant: tenantProcedure
       .input(z.object({ tenantId: z.number() }))
-      .query(async ({ input }) => {
-        const saved = await getTenantAgents(input.tenantId);
+      .query(async ({ ctx }) => {
+        const tenantId = requireTenant(ctx.tenantScope);
+        const saved = await getTenantAgents(tenantId);
         // Merge with full agent list so all 8 always appear
         return agentTypes.map((name) => {
           const found = saved.find((s) => s.agentName === name);
-          return found ?? { agentName: name, isEnabled: false, tenantId: input.tenantId, config: null };
+          return found ?? { agentName: name, isEnabled: false, tenantId, config: null };
         });
       }),
-    toggle: adminProcedure
+    toggle: tenantAdminProcedure
       .input(z.object({ tenantId: z.number(), agentName: z.string(), isEnabled: z.boolean() }))
       .mutation(async ({ input, ctx }) => {
-        await upsertTenantAgent(input.tenantId, input.agentName, input.isEnabled);
+        const tenantId = requireTenant(ctx.tenantScope);
+        await upsertTenantAgent(tenantId, input.agentName, input.isEnabled);
         await createAuditLog({
           userId: ctx.user.id,
           action: input.isEnabled ? "ENABLE_AGENT" : "DISABLE_AGENT",
           resource: "agent",
           resourceId: input.agentName,
-          details: { tenantId: input.tenantId } as any,
+          details: { tenantId } as any,
         });
         return { success: true };
       }),
-    updateConfig: adminProcedure
+    updateConfig: tenantAdminProcedure
       .input(z.object({ tenantId: z.number(), agentName: z.string(), config: z.record(z.string(), z.any()) }))
-      .mutation(async ({ input }) => {
-        await upsertTenantAgent(input.tenantId, input.agentName, true, input.config);
+      .mutation(async ({ input, ctx }) => {
+        await upsertTenantAgent(requireTenant(ctx.tenantScope), input.agentName, true, input.config);
         return { success: true };
       }),
     allMetrics: protectedProcedure.query(async () => {
@@ -232,46 +298,51 @@ export const appRouter = router({
   // authenticated network call to the private ML orchestrator.
   aiAdvisory: router({
     health: adminProcedure.query(async () => getMlGateway().health()),
-    fraud: adminProcedure
+    fraud: tenantAdminProcedure
       .input(z.object({ tenantId: z.number().int().positive(), payload: transactionFeaturesSchema }))
       .mutation(async ({ input, ctx }) =>
-        runAdvisoryWorkflow(input.tenantId, ctx.user.id, "fraud_check", input.payload)
+        runAdvisoryWorkflow(requireTenant(ctx.tenantScope), ctx.user.id, "fraud_check", input.payload)
       ),
-    credit: adminProcedure
+    credit: tenantAdminProcedure
       .input(z.object({ tenantId: z.number().int().positive(), payload: creditFeaturesSchema }))
       .mutation(async ({ input, ctx }) =>
-        runAdvisoryWorkflow(input.tenantId, ctx.user.id, "credit_assessment", input.payload)
+        runAdvisoryWorkflow(requireTenant(ctx.tenantScope), ctx.user.id, "credit_assessment", input.payload)
       ),
-    aml: adminProcedure
+    aml: tenantAdminProcedure
       .input(z.object({ tenantId: z.number().int().positive(), payload: transactionFeaturesSchema }))
       .mutation(async ({ input, ctx }) =>
-        runAdvisoryWorkflow(input.tenantId, ctx.user.id, "aml_check", input.payload)
+        runAdvisoryWorkflow(requireTenant(ctx.tenantScope), ctx.user.id, "aml_check", input.payload)
       ),
-    recommendation: protectedProcedure
+    recommendation: tenantProcedure
       .input(z.object({ tenantId: z.number().int().positive(), payload: customerFeaturesSchema }))
       .mutation(async ({ input, ctx }) =>
-        runAdvisoryWorkflow(input.tenantId, ctx.user.id, "recommend", input.payload)
+        runAdvisoryWorkflow(requireTenant(ctx.tenantScope), ctx.user.id, "recommend", input.payload)
       ),
-    assistant: protectedProcedure
+    assistant: tenantProcedure
       .input(z.object({ tenantId: z.number().int().positive(), payload: assistantFeaturesSchema }))
       .mutation(async ({ input, ctx }) =>
-        runAdvisoryWorkflow(input.tenantId, ctx.user.id, "chat", input.payload)
+        runAdvisoryWorkflow(requireTenant(ctx.tenantScope), ctx.user.id, "chat", input.payload)
       ),
   }),
 
   // ─── Fraud Detection ───────────────────────────────────────────────────────
   fraud: router({
-    transactions: protectedProcedure
+    transactions: tenantProcedure
       .input(z.object({ tenantId: z.number().optional(), limit: z.number().optional() }))
-      .query(async ({ input }) => {
-        const dbTx = await getTransactions(input.tenantId, input.limit ?? 30);
+      .query(async ({ input, ctx }) => {
+        const limit = input.limit ?? 30;
+        const dbTx = ctx.tenantScope === null
+          ? await getAllTransactionsForPlatform(limit)
+          : await getTransactions(ctx.tenantScope, limit);
         if (dbTx.length > 0) return dbTx;
         return generateMockTransactions(30);
       }),
-    flagged: protectedProcedure
+    flagged: tenantProcedure
       .input(z.object({ tenantId: z.number().optional() }))
-      .query(async ({ input }) => {
-        const dbTx = await getFlaggedTransactions(input.tenantId);
+      .query(async ({ ctx }) => {
+        const dbTx = ctx.tenantScope === null
+          ? await getAllFlaggedTransactionsForPlatform()
+          : await getFlaggedTransactions(ctx.tenantScope);
         if (dbTx.length > 0) return dbTx;
         return generateMockTransactions(30).filter((t) => t.fraudStatus !== "clean");
       }),
@@ -283,19 +354,21 @@ export const appRouter = router({
       avgRiskScore: 18.4,
       totalValueAtRisk: 4750000,
     })),
-    assess: adminProcedure
+    assess: tenantAdminProcedure
       .input(z.object({ tenantId: z.number().int().positive(), payload: transactionFeaturesSchema }))
       .mutation(async ({ input, ctx }) =>
-        runAdvisoryWorkflow(input.tenantId, ctx.user.id, "fraud_check", input.payload)
+        runAdvisoryWorkflow(requireTenant(ctx.tenantScope), ctx.user.id, "fraud_check", input.payload)
       ),
   }),
 
   // ─── Credit Risk ───────────────────────────────────────────────────────────
   credit: router({
-    applications: protectedProcedure
+    applications: tenantProcedure
       .input(z.object({ tenantId: z.number().optional() }))
-      .query(async ({ input }) => {
-        const apps = await getCreditApplications(input.tenantId);
+      .query(async ({ ctx }) => {
+        const apps = ctx.tenantScope === null
+          ? await getAllCreditApplicationsForPlatform()
+          : await getCreditApplications(ctx.tenantScope);
         if (apps.length > 0) return apps;
         // Mock data
         return Array.from({ length: 15 }, (_, i) => ({
@@ -314,7 +387,7 @@ export const appRouter = router({
     score: protectedProcedure
       .input(z.object({
         applicantName: z.string(),
-        tenantId: z.number().int().positive().default(4),
+        tenantId: z.number().int().positive().optional(),
         customerId: z.string().min(1).default("anonymous-customer"),
         monthlyIncome: z.number(),
         requestedAmount: z.number(),
@@ -334,7 +407,10 @@ export const appRouter = router({
           (input.employmentStatus === "employed" ? 80 : 20)
         ));
         const score = Math.floor(base + (Math.random() * 40 - 20));
-        const advisory = await runAdvisoryWorkflow(input.tenantId, ctx.user.id, "credit_assessment", {
+        // The advisory writes an immutable, tenant-scoped audit record, so it
+        // only runs when the tenant is known. A guessed tenant would falsify it.
+        const tenantScope = optionalTenantScope(ctx.user, input.tenantId);
+        const advisory = tenantScope === null ? null : await runAdvisoryWorkflow(tenantScope, ctx.user.id, "credit_assessment", {
           customer_id: input.customerId,
           monthly_income_ngn: input.monthlyIncome,
           employment_type: ["salaried", "self_employed", "informal", "unemployed"].includes(input.employmentStatus)
@@ -366,10 +442,12 @@ export const appRouter = router({
 
   // ─── Compliance & Reporting ────────────────────────────────────────────────
   compliance: router({
-    reports: protectedProcedure
+    reports: tenantProcedure
       .input(z.object({ tenantId: z.number().optional() }))
-      .query(async ({ input }) => {
-        const reports = await getComplianceReports(input.tenantId);
+      .query(async ({ ctx }) => {
+        const reports = ctx.tenantScope === null
+          ? await getAllComplianceReportsForPlatform()
+          : await getComplianceReports(ctx.tenantScope);
         if (reports.length > 0) return reports;
         const types = ["CBN Monthly Return", "AML Suspicious Activity Report", "CBN Quarterly Report", "NFIU Compliance Report", "Annual Regulatory Filing"];
         return types.map((t, i) => ({
@@ -383,10 +461,12 @@ export const appRouter = router({
           createdAt: new Date(Date.now() - i * 7 * 86400000),
         }));
       }),
-    amlAlerts: protectedProcedure
+    amlAlerts: tenantProcedure
       .input(z.object({ tenantId: z.number().optional() }))
-      .query(async ({ input }) => {
-        const alerts = await getAmlAlerts(input.tenantId);
+      .query(async ({ ctx }) => {
+        const alerts = ctx.tenantScope === null
+          ? await getAllAmlAlertsForPlatform()
+          : await getAmlAlerts(ctx.tenantScope);
         if (alerts.length > 0) return alerts;
         return Array.from({ length: 12 }, (_, i) => ({
           id: i + 1,
@@ -401,17 +481,20 @@ export const appRouter = router({
           resolvedAt: i % 3 === 2 ? new Date() : null,
         }));
       }),
-    analyseTransaction: adminProcedure
+    analyseTransaction: tenantAdminProcedure
       .input(z.object({ tenantId: z.number().int().positive(), payload: transactionFeaturesSchema }))
       .mutation(async ({ input, ctx }) =>
-        runAdvisoryWorkflow(input.tenantId, ctx.user.id, "aml_check", input.payload)
+        runAdvisoryWorkflow(requireTenant(ctx.tenantScope), ctx.user.id, "aml_check", input.payload)
       ),
-    auditLogs: protectedProcedure
+    auditLogs: tenantProcedure
       .input(z.object({ tenantId: z.number().optional(), limit: z.number().optional() }))
-      .query(async ({ input }) => {
-        return getAuditLogs(input.tenantId, input.limit ?? 100);
+      .query(async ({ input, ctx }) => {
+        const limit = input.limit ?? 100;
+        return ctx.tenantScope === null
+          ? getAllAuditLogsForPlatform(limit)
+          : getAuditLogs(ctx.tenantScope, limit);
       }),
-    generateReport: adminProcedure
+    generateReport: tenantAdminProcedure
       .input(z.object({ tenantId: z.number(), reportType: z.string(), period: z.string() }))
       .mutation(async ({ input, ctx }) => {
         await createAuditLog({
@@ -426,10 +509,12 @@ export const appRouter = router({
 
   // ─── Billing ───────────────────────────────────────────────────────────────
   billing: router({
-    records: protectedProcedure
+    records: tenantProcedure
       .input(z.object({ tenantId: z.number().optional() }))
-      .query(async ({ input }) => {
-        const records = await getBillingRecords(input.tenantId);
+      .query(async ({ ctx }) => {
+        const records = ctx.tenantScope === null
+          ? await getAllBillingRecordsForPlatform()
+          : await getBillingRecords(ctx.tenantScope);
         if (records.length > 0) return records;
         return Array.from({ length: 6 }, (_, i) => ({
           id: i + 1,
@@ -453,10 +538,12 @@ export const appRouter = router({
       activeSubscriptions: 12,
       overdueCount: 2,
     })),
-    invoices: protectedProcedure
+    invoices: tenantProcedure
       .input(z.object({ tenantId: z.number().optional() }))
-      .query(async ({ input }) => {
-        const records = await getBillingRecords(input.tenantId);
+      .query(async ({ ctx }) => {
+        const records = ctx.tenantScope === null
+          ? await getAllBillingRecordsForPlatform()
+          : await getBillingRecords(ctx.tenantScope);
         if (records.length > 0) return records;
         return Array.from({ length: 10 }, (_, i) => ({
           id: i + 1,
@@ -474,8 +561,11 @@ export const appRouter = router({
 
   // ─── Users ─────────────────────────────────────────────────────────────────
   users: router({
-    list: adminProcedure.query(async () => {
-      return getAllUsers();
+    list: tenantAdminProcedure.query(async ({ ctx }) => {
+      // Platform staff see the estate; a tenant admin sees only their own tenant.
+      return ctx.tenantScope === null
+        ? getAllUsersForPlatform()
+        : getUsersForTenant(ctx.tenantScope);
     }),
     updateRole: ownerProcedure
       .input(z.object({ userId: z.number(), role: z.enum(["platform_owner", "tenant_admin", "analyst", "user"]) }))
@@ -505,25 +595,34 @@ export const appRouter = router({
     send: protectedProcedure
       .input(z.object({
         message: z.string().min(1),
-        tenantId: z.number().int().positive().default(4),
+        tenantId: z.number().int().positive().optional(),
         language: z.string().min(2).max(10).default("en"),
       }))
       .mutation(async ({ input, ctx }) => {
+        const tenantScope = optionalTenantScope(ctx.user, input.tenantId);
+
+        // Read the prior turns before persisting this one. Reading afterwards put
+        // the current message into the history and then appended it again below,
+        // so the model saw the user's turn twice.
+        const priorMessages = await getChatHistory(ctx.user.id, 10);
         await saveChatMessage({ userId: ctx.user.id, role: "user", content: input.message });
 
-        const priorMessages = await getChatHistory(ctx.user.id, 10);
-        const advisory = await runAdvisoryWorkflow(input.tenantId, ctx.user.id, "chat", {
+        const conversationHistory = priorMessages.reverse().map((message) => ({
+          role: message.role === "assistant" ? "assistant" as const : "user" as const,
+          content: message.content,
+        }));
+
+        // The advisory writes an immutable, tenant-scoped audit record, so it
+        // only runs when the tenant is known. A guessed tenant would falsify it.
+        const advisory = tenantScope === null ? null : await runAdvisoryWorkflow(tenantScope, ctx.user.id, "chat", {
           session_id: `platform-user-${ctx.user.id}`,
           customer_id: `platform-user-${ctx.user.id}`,
           message: input.message,
-          conversation_history: priorMessages.reverse().map((message) => ({
-            role: message.role === "assistant" ? "assistant" as const : "user" as const,
-            content: message.content,
-          })),
+          conversation_history: conversationHistory,
           language: input.language,
         });
 
-        if (advisory.status === "advisory" && advisory.recommendation) {
+        if (advisory && advisory.status === "advisory" && advisory.recommendation) {
           await saveChatMessage({ userId: ctx.user.id, role: "assistant", content: advisory.recommendation });
           return { reply: advisory.recommendation, mlAdvisory: advisory, humanReviewRequired: true };
         }
@@ -534,10 +633,9 @@ You assist bank executives, compliance officers, and financial analysts with dat
 Be precise, professional, and reference Nigerian/African market context where relevant.
 Current date: ${new Date().toLocaleDateString("en-NG", { timeZone: "Africa/Lagos" })}.`;
 
-        const history = await getChatHistory(ctx.user.id, 10);
         const messages = [
           { role: "system" as const, content: systemPrompt },
-          ...history.reverse().map((m) => ({ role: m.role as "user" | "assistant", content: m.content })),
+          ...conversationHistory,
           { role: "user" as const, content: input.message },
         ];
 
@@ -560,78 +658,81 @@ Current date: ${new Date().toLocaleDateString("en-NG", { timeZone: "Africa/Lagos
 
   // ─── Tenant Portal: Customers ────────────────────────────────────────────────
   tenantCustomers: router({
-    list: protectedProcedure
+    list: tenantProcedure
       .input(z.object({ tenantId: z.number(), limit: z.number().optional(), offset: z.number().optional() }))
-      .query(async ({ input }) => {
-        return getCustomers(input.tenantId, input.limit ?? 50, input.offset ?? 0);
+      .query(async ({ input, ctx }) => {
+        return getCustomers(requireTenant(ctx.tenantScope), input.limit ?? 50, input.offset ?? 0);
       }),
-    byId: protectedProcedure
-      .input(z.object({ id: z.number() }))
-      .query(async ({ input }) => getCustomerById(input.id)),
-    stats: protectedProcedure
+    byId: tenantProcedure
+      .input(z.object({ id: z.number(), tenantId: z.number().optional() }))
+      .query(async ({ input, ctx }) => getCustomerById(input.id, requireTenant(ctx.tenantScope))),
+    stats: tenantProcedure
       .input(z.object({ tenantId: z.number() }))
-      .query(async ({ input }) => getCustomerStats(input.tenantId)),
-    transactions: protectedProcedure
+      .query(async ({ ctx }) => getCustomerStats(requireTenant(ctx.tenantScope))),
+    transactions: tenantProcedure
       .input(z.object({ tenantId: z.number(), customerId: z.number().optional(), limit: z.number().optional() }))
-      .query(async ({ input }) => {
-        return getTransactions(input.tenantId, input.limit ?? 20);
+      .query(async ({ input, ctx }) => {
+        return getTransactions(requireTenant(ctx.tenantScope), input.limit ?? 20);
       }),
   }),
 
   // ─── Tenant Portal: Channels ──────────────────────────────────────────────────
   tenantChannels: router({
-    sessions: protectedProcedure
+    sessions: tenantProcedure
       .input(z.object({ tenantId: z.number(), limit: z.number().optional() }))
-      .query(async ({ input }) => getChannelSessions(input.tenantId, input.limit ?? 50)),
-    stats: protectedProcedure
+      .query(async ({ input, ctx }) => getChannelSessions(requireTenant(ctx.tenantScope), input.limit ?? 50)),
+    stats: tenantProcedure
       .input(z.object({ tenantId: z.number() }))
-      .query(async ({ input }) => getChannelStats(input.tenantId)),
+      .query(async ({ ctx }) => getChannelStats(requireTenant(ctx.tenantScope))),
   }),
 
   // ─── Tenant Portal: Agent Events ──────────────────────────────────────────────
   tenantAgentEvents: router({
-    list: protectedProcedure
+    list: tenantProcedure
       .input(z.object({ tenantId: z.number(), agentName: z.string().optional(), limit: z.number().optional() }))
-      .query(async ({ input }) => getAgentEvents(input.tenantId, input.agentName, input.limit ?? 50)),
-    stats: protectedProcedure
+      .query(async ({ input, ctx }) => getAgentEvents(requireTenant(ctx.tenantScope), input.agentName, input.limit ?? 50)),
+    stats: tenantProcedure
       .input(z.object({ tenantId: z.number() }))
-      .query(async ({ input }) => getAgentEventStats(input.tenantId)),
+      .query(async ({ ctx }) => getAgentEventStats(requireTenant(ctx.tenantScope))),
   }),
 
   // ─── Tenant Portal: Data Sources ──────────────────────────────────────────────
   tenantDataSources: router({
-    list: protectedProcedure
+    list: tenantProcedure
       .input(z.object({ tenantId: z.number() }))
-      .query(async ({ input }) => getDataSources(input.tenantId)),
-    sync: adminProcedure
+      .query(async ({ ctx }) => getDataSources(requireTenant(ctx.tenantScope))),
+    sync: tenantAdminProcedure
       .input(z.object({ tenantId: z.number(), sourceId: z.number() }))
       .mutation(async ({ input, ctx }) => {
-        await createAuditLog({ userId: ctx.user.id, action: "SYNC_DATA_SOURCE", resource: "data_source", resourceId: String(input.sourceId), details: { tenantId: input.tenantId } as any });
+        const tenantId = requireTenant(ctx.tenantScope);
+        await createAuditLog({ userId: ctx.user.id, action: "SYNC_DATA_SOURCE", resource: "data_source", resourceId: String(input.sourceId), details: { tenantId } as any });
         return { success: true, message: "Sync initiated" };
       }),
   }),
 
   // ─── Tenant Portal: Overview ──────────────────────────────────────────────────
   tenantOverview: router({
-    summary: protectedProcedure
+    summary: tenantProcedure
       .input(z.object({ tenantId: z.number() }))
-      .query(async ({ input }) => {
-        return cached(`tenant:${input.tenantId}:overview`, TTL.TENANT_SUMMARY, async () => {
+      .query(async ({ ctx }) => {
+        const tenantId = requireTenant(ctx.tenantScope);
+        return cached(`tenant:${tenantId}:overview`, TTL.TENANT_SUMMARY, async () => {
           const [txStats, customerStats, channelStats, agentEventStats, tenant] = await Promise.all([
-            getTenantTransactionStats(input.tenantId),
-            getCustomerStats(input.tenantId),
-            getChannelStats(input.tenantId),
-            getAgentEventStats(input.tenantId),
-            getTenantById(input.tenantId),
+            getTenantTransactionStats(tenantId),
+            getCustomerStats(tenantId),
+            getChannelStats(tenantId),
+            getAgentEventStats(tenantId),
+            getTenantById(tenantId),
           ]);
           return { txStats, customerStats, channelStats, agentEventStats, tenant };
         });
       }),
-    agentNetwork: protectedProcedure
+    agentNetwork: tenantProcedure
       .input(z.object({ tenantId: z.number() }))
-      .query(async ({ input }) => {
-        const agents = await getTenantAgents(input.tenantId);
-        const eventStats = await getAgentEventStats(input.tenantId);
+      .query(async ({ ctx }) => {
+        const tenantId = requireTenant(ctx.tenantScope);
+        const agents = await getTenantAgents(tenantId);
+        const eventStats = await getAgentEventStats(tenantId);
         return agentTypes.map((name) => {
           const agent = agents.find((a) => a.agentName === name);
           const stats = eventStats.find((e) => e.agentName === name);
@@ -646,13 +747,14 @@ Current date: ${new Date().toLocaleDateString("en-NG", { timeZone: "Africa/Lagos
           };
         });
       }),
-    recentActivity: protectedProcedure
+    recentActivity: tenantProcedure
       .input(z.object({ tenantId: z.number() }))
-      .query(async ({ input }) => {
+      .query(async ({ ctx }) => {
+        const tenantId = requireTenant(ctx.tenantScope);
         const [transactions, alerts, events] = await Promise.all([
-          getTransactions(input.tenantId, 10),
-          getAmlAlerts(input.tenantId),
-          getAgentEvents(input.tenantId, undefined, 20),
+          getTransactions(tenantId, 10),
+          getAmlAlerts(tenantId),
+          getAgentEvents(tenantId, undefined, 20),
         ]);
         return { transactions: transactions.slice(0, 10), alerts: alerts.slice(0, 5), events: events.slice(0, 10) };
       }),
@@ -660,10 +762,10 @@ Current date: ${new Date().toLocaleDateString("en-NG", { timeZone: "Africa/Lagos
 
   // ─── Tenant Portal: Deployment ────────────────────────────────────────────────
   tenantDeployment: router({
-    status: protectedProcedure
+    status: tenantProcedure
       .input(z.object({ tenantId: z.number() }))
-      .query(async ({ input }) => {
-        const tenant = await getTenantById(input.tenantId);
+      .query(async ({ ctx }) => {
+        const tenant = await getTenantById(requireTenant(ctx.tenantScope));
         return {
           deploymentModel: tenant?.deploymentModel ?? "private_cloud",
           deploymentRegion: tenant?.deploymentRegion ?? "Lagos, Nigeria",
@@ -685,10 +787,10 @@ Current date: ${new Date().toLocaleDateString("en-NG", { timeZone: "Africa/Lagos
           networkStats: { ingressMbps: 124, egressMbps: 89, activeConnections: 2847, tlsHandshakesPerMin: 342 },
         };
       }),
-    connectivity: protectedProcedure
+    connectivity: tenantProcedure
       .input(z.object({ tenantId: z.number() }))
-      .query(async ({ input }) => {
-        const sources = await getDataSources(input.tenantId);
+      .query(async ({ ctx }) => {
+        const sources = await getDataSources(requireTenant(ctx.tenantScope));
         return {
           infinityAiPlatform: { status: "connected", latencyMs: 23, lastHeartbeat: new Date() },
           dataSources: sources,

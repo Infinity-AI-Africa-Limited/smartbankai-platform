@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import { appRouter } from "./routers";
+import { appRouter, resolveTenantScope } from "./routers";
 import type { TrpcContext } from "./_core/context";
 import { afterEach, beforeEach } from "vitest";
 import { getDb, setAiDecisionAuditWriterForTesting } from "./db";
@@ -206,6 +206,7 @@ describe("credit", () => {
       const caller = appRouter.createCaller(makeCtx());
       const result = await caller.credit.score({
         applicantName: "Chidi Okeke",
+        tenantId: 4,
         monthlyIncome: 250000,
         requestedAmount: 500000,
         employmentStatus: "employed",
@@ -223,6 +224,42 @@ describe("credit", () => {
     } finally {
       setAiDecisionAuditWriterForTesting(undefined);
     }
+  });
+
+  it("writes no advisory audit when the caller has no tenant", async () => {
+    const persistedAudits: Array<Record<string, unknown>> = [];
+    setAiDecisionAuditWriterForTesting(async (data) => { persistedAudits.push(data); });
+    try {
+      // Previously the input defaulted to tenantId 4, so an unassigned caller
+      // produced an immutable audit record attributed to a tenant they had
+      // nothing to do with.
+      const caller = appRouter.createCaller(makeTenantCtx("user", null));
+      const result = await caller.credit.score({
+        applicantName: "Unassigned Caller",
+        monthlyIncome: 250000,
+        requestedAmount: 500000,
+        employmentStatus: "employed",
+      });
+
+      expect(result.score).toBeGreaterThanOrEqual(300);
+      expect(result.mlAdvisory).toBeNull();
+      expect(persistedAudits).toHaveLength(0);
+    } finally {
+      setAiDecisionAuditWriterForTesting(undefined);
+    }
+  });
+
+  it("refuses a credit advisory for a tenant the caller does not belong to", async () => {
+    const caller = appRouter.createCaller(makeTenantCtx("tenant_admin", 7));
+    await expect(
+      caller.credit.score({
+        applicantName: "Cross Tenant",
+        tenantId: 9,
+        monthlyIncome: 250000,
+        requestedAmount: 500000,
+        employmentStatus: "employed",
+      }),
+    ).rejects.toThrow(/Cross-tenant/);
   });
 
   it("low income to loan ratio produces decline recommendation", async () => {
@@ -434,5 +471,137 @@ describe("users", () => {
     await expect(
       caller.users.updateRole({ userId: 2, role: "tenant_admin" })
     ).rejects.toThrow();
+  });
+});
+
+// ─── Tenant isolation ─────────────────────────────────────────────────────────
+// Regression cover for the cross-tenant read defects. Every tenant-scoped read
+// must take its tenant from the session, never from the request body.
+function makeTenantCtx(
+  role: "platform_owner" | "tenant_admin" | "analyst" | "user" | "admin",
+  tenantId: number | null,
+): TrpcContext {
+  const ctx = makeCtx(role);
+  return { ...ctx, user: { ...ctx.user!, tenantId } };
+}
+
+describe("tenant isolation", () => {
+  describe("resolveTenantScope", () => {
+    it("pins a tenant user to their own tenant when none is requested", () => {
+      expect(resolveTenantScope({ role: "analyst", tenantId: 7 })).toBe(7);
+    });
+
+    it("allows a tenant user to name their own tenant", () => {
+      expect(resolveTenantScope({ role: "tenant_admin", tenantId: 7 }, 7)).toBe(7);
+    });
+
+    it("rejects a tenant user naming a different tenant", () => {
+      expect(() => resolveTenantScope({ role: "tenant_admin", tenantId: 7 }, 9)).toThrow(
+        /Cross-tenant access is not permitted/,
+      );
+    });
+
+    it("rejects an account with no tenant assignment", () => {
+      expect(() => resolveTenantScope({ role: "user", tenantId: null })).toThrow(
+        /No tenant is assigned/,
+      );
+    });
+
+    it("lets platform staff target any tenant", () => {
+      expect(resolveTenantScope({ role: "platform_owner", tenantId: null }, 9)).toBe(9);
+    });
+
+    it("gives platform staff estate-wide scope when no tenant is named", () => {
+      expect(resolveTenantScope({ role: "platform_owner", tenantId: null })).toBeNull();
+    });
+
+    it("ignores a malformed or non-positive tenant id", () => {
+      expect(resolveTenantScope({ role: "platform_owner", tenantId: null }, 0)).toBeNull();
+      expect(resolveTenantScope({ role: "platform_owner", tenantId: null }, "9")).toBeNull();
+    });
+  });
+
+  describe("cross-tenant reads are refused", () => {
+    const victim = 9;
+
+    it("customer list", async () => {
+      const caller = appRouter.createCaller(makeTenantCtx("tenant_admin", 7));
+      await expect(caller.tenantCustomers.list({ tenantId: victim })).rejects.toThrow(/Cross-tenant/);
+    });
+
+    it("customer detail", async () => {
+      const caller = appRouter.createCaller(makeTenantCtx("tenant_admin", 7));
+      await expect(caller.tenantCustomers.byId({ id: 1, tenantId: victim })).rejects.toThrow(/Cross-tenant/);
+    });
+
+    it("transaction ledger", async () => {
+      const caller = appRouter.createCaller(makeTenantCtx("analyst", 7));
+      await expect(caller.fraud.transactions({ tenantId: victim })).rejects.toThrow(/Cross-tenant/);
+    });
+
+    it("AML alerts", async () => {
+      const caller = appRouter.createCaller(makeTenantCtx("analyst", 7));
+      await expect(caller.compliance.amlAlerts({ tenantId: victim })).rejects.toThrow(/Cross-tenant/);
+    });
+
+    it("audit trail", async () => {
+      const caller = appRouter.createCaller(makeTenantCtx("tenant_admin", 7));
+      await expect(caller.compliance.auditLogs({ tenantId: victim })).rejects.toThrow(/Cross-tenant/);
+    });
+
+    it("billing records", async () => {
+      const caller = appRouter.createCaller(makeTenantCtx("tenant_admin", 7));
+      await expect(caller.billing.records({ tenantId: victim })).rejects.toThrow(/Cross-tenant/);
+    });
+
+    it("channel sessions", async () => {
+      const caller = appRouter.createCaller(makeTenantCtx("analyst", 7));
+      await expect(caller.tenantChannels.sessions({ tenantId: victim })).rejects.toThrow(/Cross-tenant/);
+    });
+
+    it("tenant overview", async () => {
+      const caller = appRouter.createCaller(makeTenantCtx("tenant_admin", 7));
+      await expect(caller.tenantOverview.summary({ tenantId: victim })).rejects.toThrow(/Cross-tenant/);
+    });
+
+    it("agent configuration changes", async () => {
+      const caller = appRouter.createCaller(makeTenantCtx("tenant_admin", 7));
+      await expect(
+        caller.agents.toggle({ tenantId: victim, agentName: "Fraud Detection", isEnabled: false }),
+      ).rejects.toThrow(/Cross-tenant/);
+    });
+  });
+
+  describe("unassigned accounts hold no tenant data", () => {
+    it("a retail user with no tenant cannot read a tenant ledger", async () => {
+      const caller = appRouter.createCaller(makeTenantCtx("user", null));
+      await expect(caller.tenantCustomers.transactions({ tenantId: 1 })).rejects.toThrow(
+        /No tenant is assigned/,
+      );
+    });
+  });
+
+  describe("platform staff retain estate-wide access", () => {
+    it("owner may read a named tenant", async () => {
+      const caller = appRouter.createCaller(makeTenantCtx("platform_owner", null));
+      await expect(caller.tenantCustomers.list({ tenantId: 9 })).resolves.toBeDefined();
+    });
+
+    it("owner may read across the estate", async () => {
+      const caller = appRouter.createCaller(makeTenantCtx("platform_owner", null));
+      await expect(caller.compliance.auditLogs({})).resolves.toBeDefined();
+    });
+  });
+
+  describe("estate-wide aggregates stay owner-only", () => {
+    it("a tenant admin cannot list every tenant", async () => {
+      const caller = appRouter.createCaller(makeTenantCtx("tenant_admin", 7));
+      await expect(caller.tenants.list()).rejects.toThrow(/Platform owner access required/);
+    });
+
+    it("a tenant admin cannot read platform statistics", async () => {
+      const caller = appRouter.createCaller(makeTenantCtx("tenant_admin", 7));
+      await expect(caller.platform.stats()).rejects.toThrow(/Platform owner access required/);
+    });
   });
 });
