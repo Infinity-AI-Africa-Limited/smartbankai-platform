@@ -1,7 +1,6 @@
-import { describe, expect, it, vi, beforeEach } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { appRouter, resolveTenantScope } from "./routers";
 import type { TrpcContext } from "./_core/context";
-import { afterEach, beforeEach } from "vitest";
 import { getDb, setAiDecisionAuditWriterForTesting } from "./db";
 import { MlGateway, setMlGatewayForTesting } from "./mlGateway";
 import { randomUUID } from "node:crypto";
