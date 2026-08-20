@@ -239,5 +239,6 @@
 - [x] Document the required-check names, signed-commit exception, and future CODEOWNERS rollout
 - [ ] Repair failing platform and ML CI checks before making them merge-blocking
 - [ ] Correct the platform CI action order so pnpm exists before setup-node enables its pnpm cache
+- [ ] Remove the conflicting explicit pnpm action version so CI uses the package-manager pin
 - [ ] Align branch-protection required-check names with the actual stable GitHub Actions job names
 - [ ] Confirm an independent human or approved GitHub App can submit `APPROVED` reviews before setting a non-bypassable approval requirement
