@@ -36,6 +36,7 @@ export default function Compliance() {
   const [selectedPeriod, setSelectedPeriod] = useState("Q2-2026");
   const reportsQuery = trpc.compliance.reports.useQuery({});
   const amlQuery = trpc.compliance.amlAlerts.useQuery({});
+  const transactionsQuery = trpc.fraud.transactions.useQuery({ tenantId: 4, limit: 30 });
   const auditQuery = trpc.compliance.auditLogs.useQuery({});
   const generateMutation = trpc.compliance.generateReport.useMutation({
     onSuccess: (d) => { toast.success(d.message); reportsQuery.refetch(); },
@@ -45,9 +46,30 @@ export default function Compliance() {
   const reports = reportsQuery.data ?? [];
   const alerts = amlQuery.data ?? [];
   const logs = auditQuery.data ?? [];
+  const transactions = transactionsQuery.data ?? [];
 
   const openAlerts = alerts.filter((a) => a.status === "open").length;
   const criticalAlerts = alerts.filter((a) => a.severity === "critical").length;
+  const amlAdvisory = trpc.compliance.analyseTransaction.useMutation({
+    onSuccess: (result) => toast.success(result.status === "advisory" ? "AML advisory recorded for human review" : "AML service unavailable — review is required"),
+    onError: (error) => toast.error(error.message),
+  });
+
+  const analyseAml = () => {
+    const transaction = transactions[0];
+    if (!transaction) return toast.info("No transaction is available for AML advisory analysis");
+    const createdAt = new Date(transaction.createdAt);
+    const channelMap: Record<string, "web" | "mobile" | "ussd" | "pos" | "atm" | "branch" | "api"> = {
+      web_banking: "web", mobile_app: "mobile", web: "web", mobile: "mobile", ussd: "ussd", pos: "pos", atm: "atm", branch: "branch", api: "api",
+    };
+    amlAdvisory.mutate({
+      tenantId: Number(transaction.tenantId ?? 4),
+      payload: {
+        transaction_id: String(transaction.transactionRef), amount_ngn: Number(transaction.amount),
+        channel: channelMap[String(transaction.channel)] ?? "mobile", hour_of_day: createdAt.getHours(), day_of_week: createdAt.getDay(),
+      },
+    });
+  };
 
   return (
     <div className="space-y-6 animate-fade-up">
@@ -179,7 +201,12 @@ export default function Compliance() {
         <div className="rounded-xl border border-[#1E2A3A] overflow-hidden" style={{ background: "#111827" }}>
           <div className="p-4 border-b border-[#1E2A3A] flex items-center justify-between">
             <h3 className="text-sm font-semibold text-white">AML Alert Management</h3>
-            <Badge className="bg-red-500/10 text-red-400 border-red-500/20 text-[10px]">{openAlerts} Open</Badge>
+            <div className="flex items-center gap-2">
+              <Badge className="bg-red-500/10 text-red-400 border-red-500/20 text-[10px]">{openAlerts} Open</Badge>
+              <Button size="sm" className="h-7 text-[10px] gradient-brand text-white" onClick={analyseAml} disabled={amlAdvisory.isPending}>
+                <Shield className="h-3 w-3 mr-1" /> {amlAdvisory.isPending ? "Analysing" : "Run advisory"}
+              </Button>
+            </div>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">

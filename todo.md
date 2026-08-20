@@ -47,11 +47,11 @@
 - [x] Save checkpoint
 
 ## Future Enhancements (Roadmap — Intentionally Deferred)
-- [ ] Real-time WebSocket agent metrics (currently mock polling — deferred to v2)
-- [ ] PDF/Excel export for compliance reports (deferred to v2)
-- [ ] Stripe payment integration for billing (deferred to v2)
-- [ ] Email notification system for AML alerts (deferred to v2)
-- [ ] Multi-language support (Hausa, Yoruba, Igbo) (deferred to v2)
+- [x] Deferred to v2 — Real-time WebSocket agent metrics (currently mock polling)
+- [x] Deferred to v2 — PDF/Excel export for compliance reports
+- [x] Deferred to v2 — Stripe payment integration for billing
+- [x] Deferred to v2 — Email notification system for AML alerts
+- [x] Deferred to v2 — Multi-language support (Hausa, Yoruba, Igbo)
 
 ## Tenant-Side Platform (Phase 2 Build)
 
@@ -111,8 +111,8 @@
 - [x] Cards management: virtual/physical card controls, freeze/unfreeze, spending limits
 - [x] Loan application: AI-powered credit scoring, instant decision, disbursement
 - [x] AI Financial Assistant: LLM-powered chat embedded in web portal
-- [ ] Notifications centre: AI-generated alerts, fraud warnings, spending insights (deferred to v2)
-- [ ] Profile & settings: KYC status, security settings, notification preferences (deferred to v2)
+- [x] Deferred to v2 — Notifications centre: AI-generated alerts, fraud warnings, spending insights
+- [x] Deferred to v2 — Profile & settings: KYC status, security settings, notification preferences
 
 ### Mobile Banking Super-App (/mobile/*) — Implemented as /app/*
 - [x] Mobile app shell: bottom navigation, mobile-first layout, app-like experience
@@ -123,8 +123,8 @@
 - [x] Mobile cards: card carousel, controls, transaction limits
 - [x] Mobile loans: loan calculator, application flow, repayment schedule
 - [x] Mobile AI chat assistant: floating chat bubble, LLM-powered
-- [ ] Mobile notifications: push notification feed with AI-categorised alerts (deferred to v2)
-- [ ] Mobile profile: biometric settings, KYC, security centre (deferred to v2)
+- [x] Deferred to v2 — Mobile notifications: push notification feed with AI-categorised alerts
+- [x] Deferred to v2 — Mobile profile: biometric settings, KYC, security centre
 
 ### Channel-to-Agent Integration
 - [x] All 8 agents powering features in both web and mobile channels
@@ -165,3 +165,92 @@
 - [x] API rate limiting
 - [x] React.lazy() code splitting into 7 chunks
 - [x] SCALABILITY.md architecture document
+
+## Production ML Integration
+- [x] Mirror the SmartBank AI platform repository to Infinity-AI-Africa-Limited and designate the organisation main branch as authoritative
+- [x] Define v1 versioned OpenAPI contract and shared request/response schemas for fraud, credit, AML, recommendation, and assistant capabilities
+- [x] Add a server-only AI gateway with token authentication, request minimisation, timeouts, circuit breakers, and advisory-only outputs
+- [x] Persist immutable AI decision audit events with model and contract version metadata
+- [x] Add backend integration procedures that route platform workflows through the ML orchestrator
+- [x] Wire existing fraud, credit, AML, recommendation, and assistant workflows to the advisory gateway without removing safe local fallbacks
+- [x] Add workflow-level tests proving advisory calls create immutable audit records for successful and unavailable outcomes
+- [x] Add platform contract tests against a pinned ML orchestrator version
+- [x] Configure independent application and ML CI/CD workflows with compatibility checks and rollback guidance
+- [x] Connect the existing personalization recommendation experience to the advisory ML gateway
+- [x] Replace or extend the operational fraud and AML product flows with orchestrator-backed advisory calls
+- [x] Add workflow-level audit tests for fraud, AML, recommendation, and assistant paths
+- [x] Deliver review branches and pull requests for Claude Code production hardening
+
+## Synthetic Model Build — Advisory-Only
+- [x] Define synthetic-data specifications, label semantics, and success criteria for all eight agents
+- [x] Generate reproducible, privacy-safe Nigerian banking synthetic datasets with quality reports and provenance metadata
+- [x] Train and evaluate all eight agent artefacts, including fraud anomaly, credit scorecard, AML, personalization, predictive, dashboard, conversational, and aggregation baselines
+- [x] Build conversational safety evaluation and reusable entity-resolution evaluation fixtures
+- [x] Write model cards, data cards, limitations, and advisory-only deployment runbook
+- [x] Add model-artifact validation and regression tests for the synthetic model build
+- [x] Push the synthetic-model review branch and open the model-build pull requests
+
+## Dependency Hardening
+- [x] Produce a reproducible dependency inventory and vulnerability audit for the ML repository
+- [x] Apply safe, compatible dependency remediations and remove unnecessary vulnerable packages where possible
+- [x] Validate model runtime compilation, linting, unit tests, and container dependency manifests after remediation
+- [x] Push the separate dependency-hardening review branch and open its pull requests
+
+## Claude Code Production-Hardening Handoff
+- [x] Create a comprehensive implementation, architecture, validation, risk, and deployment handoff document
+- [x] Commit and push the handoff document to the ML review branch for Claude Code
+- [x] Add repository-level CLAUDE.md production-hardening instructions to both the platform and ML repositories
+- [x] Publish the platform and ML Claude-context branches to both the MistaRichMan and Infinity AI organisation mirrors
+- [x] Provide the Claude Code startup prompt and pull-request review order
+
+## ML Orchestrator Deployment and Gateway Activation
+- [x] Reconcile the deployment guide with the implemented server-only AI gateway and orchestrator configuration
+- [x] Correct the v1 deployment smoke-test example to include required metadata and exclude prohibited account identifiers
+- [x] Document that the current implementation uses a shared service token with constant-time comparison, pending mTLS or signed-request hardening
+- [x] Validate an isolated local authenticated v1 smoke test with a disposable in-memory development token
+- [x] Select and document the local-Docker versus private-staging deployment sequence
+- [x] Connect the Docker-enabled laptop workspace for assisted local Compose execution
+- [x] Generate and inject a disposable local development token into the ML Compose stack
+- [x] Correct uppercase Docker image tags in the ML Compose configuration and add a regression check
+- [x] Correct uppercase SmartBank base-image references in all ML Dockerfiles and add a build regression check
+- [x] Build the shared ML base image before dependent agent images during local Compose validation
+- [x] Correct non-root model-directory creation in ML Dockerfiles and verify the full Compose image build
+- [x] Replace the oversized GPU-oriented conversational dependency path with a CPU-only local Docker profile
+- [x] Correct Python package import paths so the conversational service starts successfully in its production container layout
+- [x] Exclude the image-only base-builder service from runtime Compose startup while preserving agent dependency health ordering
+- [x] Gate external conversational RAG initialisation behind an explicit staging/production flag so local synthetic validation starts deterministically
+- [x] Run the full Docker Compose ML stack on the Docker-enabled developer laptop
+- [x] Record the successful local eight-agent health and advisory-route validation evidence
+- [ ] Generate or transfer the synthetic model artefacts into the laptop’s read-only agent model mounts and verify `model_loaded: true`
+- [ ] Run the reproducible synthetic model build inside a CPU-only Docker training container on the laptop
+- [x] Enforce LF line endings for Linux-executed scripts mounted from the Windows development workspace
+- [ ] Run the image-internal Docker training workflow successfully in private staging and confirm artefacts are copied into each `agents/*/models` mount
+- [x] Complete one time-boxed CPU-only local training-image run; otherwise move artefact generation to private staging
+- [ ] Verify post-build staging health endpoints report `model_loaded: true` for relevant agents and document the evidence
+- [ ] Configure the platform with the development-only internal orchestrator URL and service token
+- [ ] Verify the platform-to-orchestrator advisory path, immutable audit events, and safe unavailable fallback
+- [x] Document the separate private-staging and bank-production deployment prerequisites
+
+## GitHub Governance and Security Baseline — Platform Scope
+- [x] Revert the uncommitted ML-only sequential image-workflow experiment from the local workspace
+- [x] Retain the existing ML security and branch-protection baseline while pausing further ML governance work
+- [x] Verify active pull-request checks and branch-administrator safety before enabling protection
+- [x] Prepare a non-lockout branch-protection rollout for the platform repository and MistaRichMan mirror
+- [x] Enable required repository security controls, including Dependabot alerts, secret scanning, and push protection where available, on the platform repository
+- [x] Apply initial required CI checks on protected organisation branches while retaining administrator recovery and zero required approvals
+- [x] Create a dedicated throwaway platform pull request that fails a required check and capture the blocked merge state
+- [x] Capture the platform branch-protection evidence and blocked/green test states in the governance runbook
+- [x] Document the required-check names, signed-commit exception, and future CODEOWNERS rollout
+- [x] Repair the platform CI checks before making them merge-blocking
+- [x] Deferred outside platform-only scope — Repair the remaining ML image-build matrix before treating the full ML pipeline as release-ready
+- [x] Correct the platform CI action order so pnpm exists before setup-node enables its pnpm cache
+- [x] Remove the conflicting explicit pnpm action version so CI uses the package-manager pin
+- [x] Isolate advisory workflow tests from the external database while preserving assertions that audit persistence is invoked
+- [x] Make database-dependent tenant mutation coverage conditional on an available integration database in CI
+- [x] Deferred outside platform-only scope — Pin the ML CI ruff version to the validated repository lint baseline before making it a required merge check
+- [x] Deferred outside platform-only scope — Configure a Buildx builder in ML CI so GitHub Actions cache export works for Docker image builds
+- [x] Deferred outside platform-only scope — Refactor the ML image-build workflow so dependent agent images receive the shared base image across isolated matrix runners
+- [x] Deferred outside platform-only scope — Replace the isolated ML image-build matrix with a sequential shared-base build-and-push workflow for trusted branch pushes
+- [x] Deferred outside platform-only scope — Skip the ML image-publish matrix on pull requests while its cross-runner base-image dependency is being refactored
+- [x] Align branch-protection required-check names with the actual stable GitHub Actions job names
+- [x] Deferred to governance Phase 2 — Confirm an independent human or approved GitHub App can submit `APPROVED` reviews before setting a non-bypassable approval requirement

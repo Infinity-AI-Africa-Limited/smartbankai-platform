@@ -1,0 +1,55 @@
+name: SmartBank AI Platform CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main, staging]
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: Type-check, test, and verify ML compatibility
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout platform
+        uses: actions/checkout@v4
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Verify TypeScript
+        run: pnpm check
+
+      - name: Run unit tests
+        run: pnpm test
+
+      - name: Verify pinned ML API contract
+        env:
+          ML_CONTRACT_PATH: contracts/ml-orchestrator.v1.openapi.yaml
+        run: node scripts/check-ml-contract.mjs
+
+  build:
+    name: Build platform
+    needs: verify
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build

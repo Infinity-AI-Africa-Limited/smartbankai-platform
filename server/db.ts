@@ -9,6 +9,7 @@ import {
   auditLogs, billingRecords, chatMessages,
   agentTypes,
   customers, channelSessions, agentEvents, dataSources,
+  aiDecisionAudits,
 } from "../drizzle/schema";
 import { ENV } from "./_core/env";
 
@@ -230,6 +231,28 @@ export async function createAuditLog(data: typeof auditLogs.$inferInsert) {
   const db = await getDb();
   if (!db) return;
   await db.insert(auditLogs).values(data);
+}
+
+// ─── AI Decision Audits (append-only) ─────────────────────────────────────────
+type AiDecisionAuditWriter = (data: typeof aiDecisionAudits.$inferInsert) => Promise<void>;
+let testAiDecisionAuditWriter: AiDecisionAuditWriter | undefined;
+
+/** Test-only seam. Production advisory flows always use the append-only database writer. */
+export function setAiDecisionAuditWriterForTesting(writer?: AiDecisionAuditWriter) {
+  if (process.env.NODE_ENV !== "test" && process.env.VITEST !== "true") {
+    throw new Error("AI audit writer overrides are only permitted in tests");
+  }
+  testAiDecisionAuditWriter = writer;
+}
+
+export async function createAiDecisionAudit(data: typeof aiDecisionAudits.$inferInsert) {
+  if (testAiDecisionAuditWriter) {
+    await testAiDecisionAuditWriter(data);
+    return;
+  }
+  const db = await getDb();
+  if (!db) throw new Error("DB unavailable: AI advisory results must be audited before use");
+  await db.insert(aiDecisionAudits).values(data);
 }
 
 // ─── Billing ──────────────────────────────────────────────────────────────────

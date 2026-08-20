@@ -13,7 +13,7 @@ import {
   getCreditApplications,
   getComplianceReports,
   getAmlAlerts,
-  getAuditLogs, createAuditLog,
+  getAuditLogs, createAuditLog, createAiDecisionAudit,
   getBillingRecords,
   getChatHistory, saveChatMessage,
   getPlatformStats, getAllUsers,
@@ -25,6 +25,15 @@ import {
 } from "./db";
 import { agentTypes } from "../drizzle/schema";
 import { cached, TTL, rateLimiter, RATE_LIMITS } from "./_core/scale";
+import {
+  assistantFeaturesSchema,
+  creditFeaturesSchema,
+  customerFeaturesSchema,
+  transactionFeaturesSchema,
+  type MlAdvisoryRequest,
+  type MlRequestType,
+} from "../shared/ml-contract";
+import { createAdvisoryRequest, createAuditSafeInput, getMlGateway } from "./mlGateway";
 
 // ─── Role guard helpers ───────────────────────────────────────────────────────
 const adminProcedure = protectedProcedure.use(({ ctx, next }) => {
@@ -72,6 +81,41 @@ function generateMockTransactions(count = 20) {
     flagReason: null,
     createdAt: new Date(Date.now() - Math.random() * 86400000),
   }));
+}
+
+async function runAdvisoryWorkflow(
+  tenantId: number,
+  userId: number,
+  requestType: MlRequestType,
+  payload: MlAdvisoryRequest["payload"],
+) {
+  const request = createAdvisoryRequest(tenantId, requestType, payload);
+  const response = await getMlGateway().route(request);
+  const safeInput = createAuditSafeInput(request);
+
+  // This is intentionally an insert-only record. Human review outcomes must be
+  // added as later audit events; the original advisory output is never overwritten.
+  await createAiDecisionAudit({
+    decisionId: response.decision_id,
+    correlationId: response.correlation_id,
+    tenantId,
+    requestedByUserId: userId,
+    requestType: response.request_type,
+    contractVersion: response.contract_version,
+    agentName: response.model?.agent ?? null,
+    modelName: response.model?.model_name ?? null,
+    modelVersion: response.model?.model_version ?? null,
+    decisionStatus: response.status,
+    recommendation: response.recommendation ?? null,
+    confidence: response.confidence ?? null,
+    humanReviewRequired: true,
+    inputDigest: safeInput.digest,
+    minimisedInput: safeInput.payload as any,
+    responseData: response as any,
+    latencyMs: response.latency_ms ? Math.round(response.latency_ms) : null,
+  });
+
+  return response;
 }
 
 // ─── App Router ───────────────────────────────────────────────────────────────
@@ -183,6 +227,38 @@ export const appRouter = router({
     }),
   }),
 
+  // ─── Advisory ML Gateway ───────────────────────────────────────────────────
+  // The browser calls a typed tRPC procedure. Only this backend module makes the
+  // authenticated network call to the private ML orchestrator.
+  aiAdvisory: router({
+    health: adminProcedure.query(async () => getMlGateway().health()),
+    fraud: adminProcedure
+      .input(z.object({ tenantId: z.number().int().positive(), payload: transactionFeaturesSchema }))
+      .mutation(async ({ input, ctx }) =>
+        runAdvisoryWorkflow(input.tenantId, ctx.user.id, "fraud_check", input.payload)
+      ),
+    credit: adminProcedure
+      .input(z.object({ tenantId: z.number().int().positive(), payload: creditFeaturesSchema }))
+      .mutation(async ({ input, ctx }) =>
+        runAdvisoryWorkflow(input.tenantId, ctx.user.id, "credit_assessment", input.payload)
+      ),
+    aml: adminProcedure
+      .input(z.object({ tenantId: z.number().int().positive(), payload: transactionFeaturesSchema }))
+      .mutation(async ({ input, ctx }) =>
+        runAdvisoryWorkflow(input.tenantId, ctx.user.id, "aml_check", input.payload)
+      ),
+    recommendation: protectedProcedure
+      .input(z.object({ tenantId: z.number().int().positive(), payload: customerFeaturesSchema }))
+      .mutation(async ({ input, ctx }) =>
+        runAdvisoryWorkflow(input.tenantId, ctx.user.id, "recommend", input.payload)
+      ),
+    assistant: protectedProcedure
+      .input(z.object({ tenantId: z.number().int().positive(), payload: assistantFeaturesSchema }))
+      .mutation(async ({ input, ctx }) =>
+        runAdvisoryWorkflow(input.tenantId, ctx.user.id, "chat", input.payload)
+      ),
+  }),
+
   // ─── Fraud Detection ───────────────────────────────────────────────────────
   fraud: router({
     transactions: protectedProcedure
@@ -207,6 +283,11 @@ export const appRouter = router({
       avgRiskScore: 18.4,
       totalValueAtRisk: 4750000,
     })),
+    assess: adminProcedure
+      .input(z.object({ tenantId: z.number().int().positive(), payload: transactionFeaturesSchema }))
+      .mutation(async ({ input, ctx }) =>
+        runAdvisoryWorkflow(input.tenantId, ctx.user.id, "fraud_check", input.payload)
+      ),
   }),
 
   // ─── Credit Risk ───────────────────────────────────────────────────────────
@@ -233,12 +314,19 @@ export const appRouter = router({
     score: protectedProcedure
       .input(z.object({
         applicantName: z.string(),
+        tenantId: z.number().int().positive().default(4),
+        customerId: z.string().min(1).default("anonymous-customer"),
         monthlyIncome: z.number(),
         requestedAmount: z.number(),
         employmentStatus: z.string(),
         mobileMoneyScore: z.number().optional(),
+        existingMonthlyObligations: z.number().nonnegative().default(0),
+        repaymentHistoryScore: z.number().min(0).max(100).optional(),
+        bvnVerified: z.boolean().default(false),
+        accountAgeMonths: z.number().int().nonnegative().default(0),
+        averageMonthlyBalance: z.number().nonnegative().default(0),
       }))
-      .mutation(async ({ input }) => {
+      .mutation(async ({ input, ctx }) => {
         const base = Math.min(850, Math.max(300,
           400 +
           (input.monthlyIncome / input.requestedAmount) * 100 +
@@ -246,6 +334,20 @@ export const appRouter = router({
           (input.employmentStatus === "employed" ? 80 : 20)
         ));
         const score = Math.floor(base + (Math.random() * 40 - 20));
+        const advisory = await runAdvisoryWorkflow(input.tenantId, ctx.user.id, "credit_assessment", {
+          customer_id: input.customerId,
+          monthly_income_ngn: input.monthlyIncome,
+          employment_type: ["salaried", "self_employed", "informal", "unemployed"].includes(input.employmentStatus)
+            ? input.employmentStatus as "salaried" | "self_employed" | "informal" | "unemployed"
+            : "unknown",
+          loan_amount_ngn: input.requestedAmount,
+          loan_tenure_months: 12,
+          existing_monthly_obligations_ngn: input.existingMonthlyObligations,
+          repayment_history_score: input.repaymentHistoryScore ?? input.mobileMoneyScore ?? 50,
+          bvn_verified: input.bvnVerified,
+          account_age_months: input.accountAgeMonths,
+          avg_monthly_balance_ngn: input.averageMonthlyBalance,
+        });
         return {
           score,
           recommendation: score >= 650 ? "approve" : score >= 500 ? "review" : "decline",
@@ -256,6 +358,8 @@ export const appRouter = router({
             { factor: "Employment Status", impact: input.employmentStatus === "employed" ? "positive" : "negative", weight: 20 },
             { factor: "Alternative Data Score", impact: "positive", weight: 20 },
           ],
+          mlAdvisory: advisory,
+          humanReviewRequired: true,
         };
       }),
   }),
@@ -297,6 +401,11 @@ export const appRouter = router({
           resolvedAt: i % 3 === 2 ? new Date() : null,
         }));
       }),
+    analyseTransaction: adminProcedure
+      .input(z.object({ tenantId: z.number().int().positive(), payload: transactionFeaturesSchema }))
+      .mutation(async ({ input, ctx }) =>
+        runAdvisoryWorkflow(input.tenantId, ctx.user.id, "aml_check", input.payload)
+      ),
     auditLogs: protectedProcedure
       .input(z.object({ tenantId: z.number().optional(), limit: z.number().optional() }))
       .query(async ({ input }) => {
@@ -394,9 +503,30 @@ export const appRouter = router({
       return msgs.reverse();
     }),
     send: protectedProcedure
-      .input(z.object({ message: z.string().min(1) }))
+      .input(z.object({
+        message: z.string().min(1),
+        tenantId: z.number().int().positive().default(4),
+        language: z.string().min(2).max(10).default("en"),
+      }))
       .mutation(async ({ input, ctx }) => {
         await saveChatMessage({ userId: ctx.user.id, role: "user", content: input.message });
+
+        const priorMessages = await getChatHistory(ctx.user.id, 10);
+        const advisory = await runAdvisoryWorkflow(input.tenantId, ctx.user.id, "chat", {
+          session_id: `platform-user-${ctx.user.id}`,
+          customer_id: `platform-user-${ctx.user.id}`,
+          message: input.message,
+          conversation_history: priorMessages.reverse().map((message) => ({
+            role: message.role === "assistant" ? "assistant" as const : "user" as const,
+            content: message.content,
+          })),
+          language: input.language,
+        });
+
+        if (advisory.status === "advisory" && advisory.recommendation) {
+          await saveChatMessage({ userId: ctx.user.id, role: "assistant", content: advisory.recommendation });
+          return { reply: advisory.recommendation, mlAdvisory: advisory, humanReviewRequired: true };
+        }
 
         const systemPrompt = `You are SmartBank AI's Conversational Financial Intelligence Agent, powered by Infinity AI. 
 You are an expert in African banking, Nigerian financial regulations (CBN guidelines), fintech, credit risk, fraud detection, and financial analytics.
@@ -416,7 +546,7 @@ Current date: ${new Date().toLocaleDateString("en-NG", { timeZone: "Africa/Lagos
         const reply = typeof rawContent === 'string' ? rawContent : "I apologize, I could not process your request.";
 
         await saveChatMessage({ userId: ctx.user.id, role: "assistant", content: reply });
-        return { reply };
+        return { reply, mlAdvisory: advisory, humanReviewRequired: true };
       }),
     clear: protectedProcedure.mutation(async ({ ctx }) => {
       const db = await import("./db").then((m) => m.getDb());
@@ -574,4 +704,3 @@ Current date: ${new Date().toLocaleDateString("en-NG", { timeZone: "Africa/Lagos
 });
 
 export type AppRouter = typeof appRouter;
-
