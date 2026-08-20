@@ -17,13 +17,6 @@ jobs:
       - name: Checkout platform
         uses: actions/checkout@v4
 
-      - name: Checkout pinned ML contract source
-        uses: actions/checkout@v4
-        with:
-          repository: Infinity-AI-Africa-Limited/smartbankAI-ml
-          ref: 77c3adc
-          path: ml-services
-
       - name: Set up Node
         uses: actions/setup-node@v4
         with:
@@ -46,7 +39,7 @@ jobs:
 
       - name: Verify pinned ML API contract
         env:
-          ML_CONTRACT_PATH: ml-services/contracts/ml-orchestrator.v1.openapi.yaml
+          ML_CONTRACT_PATH: contracts/ml-orchestrator.v1.openapi.yaml
         run: node scripts/check-ml-contract.mjs
 
   build:

@@ -230,3 +230,13 @@
 - [ ] Configure the platform with the development-only internal orchestrator URL and service token
 - [ ] Verify the platform-to-orchestrator advisory path, immutable audit events, and safe unavailable fallback
 - [x] Document the separate private-staging and bank-production deployment prerequisites
+
+## GitHub Governance and Security Baseline
+- [x] Verify active pull-request checks and branch-administrator safety before enabling protection
+- [x] Prepare a non-lockout branch-protection rollout for platform and ML repositories
+- [x] Enable required repository security controls, including Dependabot alerts, secret scanning, and push protection where available
+- [ ] Test protected-branch enforcement with a throwaway review workflow before requiring approvals without bypass
+- [x] Document the required-check names, signed-commit exception, and future CODEOWNERS rollout
+- [ ] Repair failing platform and ML CI checks before making them merge-blocking
+- [ ] Align branch-protection required-check names with the actual stable GitHub Actions job names
+- [ ] Confirm an independent human or approved GitHub App can submit `APPROVED` reviews before setting a non-bypassable approval requirement
