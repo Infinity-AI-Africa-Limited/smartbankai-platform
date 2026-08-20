@@ -1,6 +1,7 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { appRouter } from "./routers";
 import type { TrpcContext } from "./_core/context";
+import { afterEach, beforeEach } from "vitest";
 import { setAiDecisionAuditWriterForTesting } from "./db";
 import { MlGateway, setMlGatewayForTesting } from "./mlGateway";
 import { randomUUID } from "node:crypto";
@@ -38,6 +39,17 @@ function makePublicCtx(): TrpcContext {
     res: { clearCookie } as TrpcContext["res"],
   };
 }
+
+// Router tests exercise advisory workflows without relying on an external CI
+// database. Each invocation still must call the append-only audit writer.
+beforeEach(() => {
+  setAiDecisionAuditWriterForTesting(async () => undefined);
+});
+
+afterEach(() => {
+  setAiDecisionAuditWriterForTesting(undefined);
+  setMlGatewayForTesting(undefined);
+});
 
 // ─── Auth ─────────────────────────────────────────────────────────────────────
 describe("auth", () => {
