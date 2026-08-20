@@ -9,4 +9,8 @@ export const ENV = {
   forgeApiKey: process.env.BUILT_IN_FORGE_API_KEY ?? "",
   mlOrchestratorUrl: process.env.SMARTBANK_ML_ORCHESTRATOR_URL ?? "",
   mlServiceToken: process.env.SMARTBANK_ML_SERVICE_TOKEN ?? "",
+  // Keys the pseudonyms that replace account numbers on the way to the ML layer.
+  // Must be its own managed secret before UAT: reusing the service token would
+  // mean rotating one forces re-keying every historical pseudonym.
+  mlPseudonymSecret: process.env.SMARTBANK_ML_PSEUDONYM_SECRET ?? "",
 };

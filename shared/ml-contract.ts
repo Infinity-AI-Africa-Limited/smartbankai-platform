@@ -58,6 +58,37 @@ export const customerFeaturesSchema = z.object({
   account_age_months: z.number().int().nonnegative(),
 }).strict();
 
+/**
+ * Party identifiers crossing the ML boundary must be platform-issued pseudonymous
+ * keys. An 11-digit numeric string is the shape of a BVN or NIN; the orchestrator
+ * rejects it, and rejecting it here too turns a 422 into a local type error.
+ */
+const partyKeySchema = z
+  .string()
+  .min(1)
+  .max(100)
+  .refine((value) => !/^\d{11}$/.test(value), {
+    message: "party identifiers must be pseudonymous keys, not raw BVN/NIN values",
+  });
+
+export const amlTransactionSchema = z.object({
+  id: z.string().min(1).max(100),
+  sender: partyKeySchema,
+  receiver: partyKeySchema,
+  amount_ngn: z.number().finite().nonnegative(),
+  timestamp: z.string().datetime({ offset: true }),
+}).strict();
+
+export const amlFeaturesSchema = z.object({
+  customer_id: partyKeySchema,
+  transactions: z.array(amlTransactionSchema).min(1).max(500),
+  check_types: z
+    .array(z.enum(["structuring", "layering", "smurfing"]))
+    .min(1)
+    .max(3)
+    .default(["structuring", "layering", "smurfing"]),
+}).strict();
+
 export const assistantFeaturesSchema = z.object({
   session_id: z.string().min(1).max(100),
   customer_id: z.string().min(1).max(100).optional(),
@@ -76,7 +107,7 @@ export const fraudRequestSchema = requestMetadataSchema.extend({
 
 export const amlRequestSchema = requestMetadataSchema.extend({
   request_type: z.literal("aml_check"),
-  payload: transactionFeaturesSchema,
+  payload: amlFeaturesSchema,
 });
 
 export const creditRequestSchema = requestMetadataSchema.extend({

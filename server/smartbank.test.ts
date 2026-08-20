@@ -386,7 +386,21 @@ describe("advisory workflows", () => {
       };
       const [fraud, aml, recommendation, assistant] = await Promise.all([
         caller.fraud.assess({ tenantId: 4, payload: transactionPayload }),
-        caller.compliance.analyseTransaction({ tenantId: 4, payload: transactionPayload }),
+        caller.aiAdvisory.aml({
+          tenantId: 4,
+          payload: {
+            customer_id: "party_testkey000000000001",
+            transactions: [
+              {
+                id: `TXN-AML-${Date.now()}`,
+                sender: "party_testkey000000000001",
+                receiver: "party_testkey000000000002",
+                amount_ngn: 950000,
+                timestamp: new Date().toISOString(),
+              },
+            ],
+          },
+        }),
         caller.aiAdvisory.recommendation({
           tenantId: 4,
           payload: {

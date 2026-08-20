@@ -1,4 +1,4 @@
-import { createHash, randomUUID } from "node:crypto";
+import { createHash, createHmac, randomUUID } from "node:crypto";
 import {
   ML_CONTRACT_VERSION,
   mlAdvisoryRequestSchema,
@@ -11,7 +11,10 @@ import {
 import { ENV } from "./_core/env";
 
 const PLATFORM_CLIENT_ID = "smartbank-platform";
-const REQUEST_TIMEOUT_MS = 6_000;
+// Must exceed the orchestrator's own per-agent budget (10s) plus its overhead,
+// otherwise the platform aborts work the orchestrator is still completing and
+// trips its own circuit against a healthy service.
+const REQUEST_TIMEOUT_MS = 15_000;
 const FAILURE_THRESHOLD = 3;
 const RECOVERY_WINDOW_MS = 30_000;
 
@@ -147,6 +150,22 @@ export class MlGateway {
   }
 }
 
+/**
+ * Replace a raw identifier - an account number, a customer id - with a stable
+ * pseudonymous key before it crosses the ML boundary. Deterministic within a
+ * tenant so AML typology graphs still link parties, and not reversible without
+ * the secret. The tenant is mixed in so the same account under two tenants does
+ * not produce the same key.
+ */
+export function pseudonymousKey(tenantId: number, kind: string, value: string | null | undefined): string {
+  const secret = ENV.mlPseudonymSecret || ENV.mlServiceToken;
+  if (!secret) throw new Error("Pseudonymisation secret is not configured; refusing to send identifiers to the ML layer");
+  const digest = createHmac("sha256", secret)
+    .update(`smartbank:pseudonym:v1:${tenantId}:${kind}:${value ?? ""}`)
+    .digest("hex");
+  return `${kind}_${digest.slice(0, 24)}`;
+}
+
 export function createAdvisoryRequest<T extends MlAdvisoryRequest["payload"]>(
   tenantId: number,
   requestType: MlRequestType,
@@ -174,15 +193,42 @@ function stableStringify(value: unknown): string {
 /** Never persist chat contents in the decision audit; retain a digest and safe metadata only. */
 export function createAuditSafeInput(request: MlAdvisoryRequest) {
   const digest = createHash("sha256").update(stableStringify(request.payload)).digest("hex");
-  const payload = request.request_type === "chat"
-    ? {
+  let payload: Record<string, unknown>;
+  switch (request.request_type) {
+    case "chat":
+      payload = {
         session_id: request.payload.session_id,
         customer_id: request.payload.customer_id,
         language: request.payload.language,
         message_redacted: true,
         conversation_turn_count: request.payload.conversation_history.length,
-      }
-    : request.payload;
+      };
+      break;
+    case "credit_assessment": {
+      // Income, obligations and balances are account data. The digest above
+      // still binds the audit row to the exact input that produced the advice.
+      const { customer_id, employment_type, loan_tenure_months, bvn_verified, account_age_months } = request.payload;
+      payload = {
+        customer_id,
+        employment_type,
+        loan_tenure_months,
+        bvn_verified,
+        account_age_months,
+        financial_inputs_redacted: true,
+      };
+      break;
+    }
+    case "aml_check":
+      payload = {
+        customer_id: request.payload.customer_id,
+        check_types: request.payload.check_types,
+        transaction_count: request.payload.transactions.length,
+        transactions_redacted: true,
+      };
+      break;
+    default:
+      payload = request.payload;
+  }
 
   return { digest, payload };
 }

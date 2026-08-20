@@ -33,8 +33,9 @@ import {
   transactionFeaturesSchema,
   type MlAdvisoryRequest,
   type MlRequestType,
+  amlFeaturesSchema,
 } from "../shared/ml-contract";
-import { createAdvisoryRequest, createAuditSafeInput, getMlGateway } from "./mlGateway";
+import { createAdvisoryRequest, createAuditSafeInput, getMlGateway, pseudonymousKey } from "./mlGateway";
 
 // ─── Role guard helpers ───────────────────────────────────────────────────────
 const adminProcedure = protectedProcedure.use(({ ctx, next }) => {
@@ -134,6 +135,9 @@ function generateMockTransactions(count = 20) {
   return Array.from({ length: count }, (_, i) => ({
     id: i + 1,
     tenantId: 1,
+    // Present so the demo shape matches the real row: callers that scope by
+    // customer must not silently see a narrower type from the mock path.
+    customerId: (i % 5) + 1 as number | null,
     transactionRef: `TXN${Date.now()}${i}`,
     amount: (Math.random() * 500000 + 1000).toFixed(2),
     currency: "NGN",
@@ -145,6 +149,35 @@ function generateMockTransactions(count = 20) {
     flagReason: null,
     createdAt: new Date(Date.now() - Math.random() * 86400000),
   }));
+}
+
+const AML_WINDOW_LIMIT = 200;
+
+/**
+ * AML typologies - structuring, layering, smurfing - are properties of a window
+ * of a customer's activity, not of one transaction. The window is assembled here
+ * rather than in the browser for two reasons: the client must never hold other
+ * parties' transactions, and account numbers must be replaced with pseudonymous
+ * keys before anything crosses the ML boundary.
+ */
+async function buildAmlWindow(tenantId: number, customerId: number) {
+  const recent = await getTransactions(tenantId, AML_WINDOW_LIMIT);
+  const scoped = recent.filter((txn) => txn.customerId === customerId);
+  if (scoped.length === 0) return null;
+
+  const key = (value: string | null | undefined) => pseudonymousKey(tenantId, "party", value ?? "unknown");
+  const subjectAccount = scoped.find((txn) => txn.senderAccount)?.senderAccount ?? `customer:${customerId}`;
+
+  return amlFeaturesSchema.parse({
+    customer_id: key(subjectAccount),
+    transactions: scoped.map((txn) => ({
+      id: String(txn.transactionRef),
+      sender: key(txn.senderAccount),
+      receiver: key(txn.receiverAccount),
+      amount_ngn: Number(txn.amount),
+      timestamp: new Date(txn.createdAt).toISOString(),
+    })),
+  });
 }
 
 async function runAdvisoryWorkflow(
@@ -309,7 +342,7 @@ export const appRouter = router({
         runAdvisoryWorkflow(requireTenant(ctx.tenantScope), ctx.user.id, "credit_assessment", input.payload)
       ),
     aml: tenantAdminProcedure
-      .input(z.object({ tenantId: z.number().int().positive(), payload: transactionFeaturesSchema }))
+      .input(z.object({ tenantId: z.number().int().positive(), payload: amlFeaturesSchema }))
       .mutation(async ({ input, ctx }) =>
         runAdvisoryWorkflow(requireTenant(ctx.tenantScope), ctx.user.id, "aml_check", input.payload)
       ),
@@ -481,11 +514,16 @@ export const appRouter = router({
           resolvedAt: i % 3 === 2 ? new Date() : null,
         }));
       }),
-    analyseTransaction: tenantAdminProcedure
-      .input(z.object({ tenantId: z.number().int().positive(), payload: transactionFeaturesSchema }))
-      .mutation(async ({ input, ctx }) =>
-        runAdvisoryWorkflow(requireTenant(ctx.tenantScope), ctx.user.id, "aml_check", input.payload)
-      ),
+    analyseCustomerActivity: tenantAdminProcedure
+      .input(z.object({ tenantId: z.number().int().positive(), customerId: z.number().int().positive() }))
+      .mutation(async ({ input, ctx }) => {
+        const tenantId = requireTenant(ctx.tenantScope);
+        const window = await buildAmlWindow(tenantId, input.customerId);
+        if (!window) {
+          throw new TRPCError({ code: "NOT_FOUND", message: "No transactions are available for AML analysis" });
+        }
+        return runAdvisoryWorkflow(tenantId, ctx.user.id, "aml_check", window);
+      }),
     auditLogs: tenantProcedure
       .input(z.object({ tenantId: z.number().optional(), limit: z.number().optional() }))
       .query(async ({ input, ctx }) => {

@@ -50,24 +50,19 @@ export default function Compliance() {
 
   const openAlerts = alerts.filter((a) => a.status === "open").length;
   const criticalAlerts = alerts.filter((a) => a.severity === "critical").length;
-  const amlAdvisory = trpc.compliance.analyseTransaction.useMutation({
+  const amlAdvisory = trpc.compliance.analyseCustomerActivity.useMutation({
     onSuccess: (result) => toast.success(result.status === "advisory" ? "AML advisory recorded for human review" : "AML service unavailable — review is required"),
     onError: (error) => toast.error(error.message),
   });
 
   const analyseAml = () => {
-    const transaction = transactions[0];
-    if (!transaction) return toast.info("No transaction is available for AML advisory analysis");
-    const createdAt = new Date(transaction.createdAt);
-    const channelMap: Record<string, "web" | "mobile" | "ussd" | "pos" | "atm" | "branch" | "api"> = {
-      web_banking: "web", mobile_app: "mobile", web: "web", mobile: "mobile", ussd: "ussd", pos: "pos", atm: "atm", branch: "branch", api: "api",
-    };
+    const transaction = transactions.find((t) => t.customerId != null);
+    if (!transaction) return toast.info("No customer transaction is available for AML advisory analysis");
+    // The server assembles the typology window and pseudonymises account numbers.
+    // The browser names a customer and nothing else.
     amlAdvisory.mutate({
       tenantId: Number(transaction.tenantId ?? 4),
-      payload: {
-        transaction_id: String(transaction.transactionRef), amount_ngn: Number(transaction.amount),
-        channel: channelMap[String(transaction.channel)] ?? "mobile", hour_of_day: createdAt.getHours(), day_of_week: createdAt.getDay(),
-      },
+      customerId: Number(transaction.customerId),
     });
   };
 
