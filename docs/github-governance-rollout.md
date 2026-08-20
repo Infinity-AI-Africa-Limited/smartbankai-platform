@@ -1,13 +1,12 @@
 # SmartBank AI GitHub Governance Rollout
 
-**Status:** Drafted from the live repository assessment on 20 August 2026. This rollout applies first to the Infinity AI organisation repositories, which are the authoritative SmartBank AI sources. The MistaRichMan repositories remain mirrors and should be protected consistently once the organisation baseline is proven.
+**Status:** Drafted from the live repository assessment on 20 August 2026. This rollout applies exclusively to the authoritative SmartBank AI platform repository and its MistaRichMan mirror. The ML repository is outside the scope of this governance task.
 
 ## Scope
 
-| Product component | Authoritative repository | Default branch |
+| Product component | Authoritative repository | Mirror | Default branch |
 |---|---|---|
-| SmartBank AI platform | `Infinity-AI-Africa-Limited/smartbankai-platform` | `main` |
-| SmartBank AI ML services | `Infinity-AI-Africa-Limited/smartbankAI-ml` | `main` |
+| SmartBank AI platform | `Infinity-AI-Africa-Limited/smartbankai-platform` | `MistaRichMan/smartbankai` | `main` |
 
 ## Assessment Findings
 
@@ -19,7 +18,7 @@ Greptile has produced `COMMENTED` reviews and successful review checks, but no o
 
 ## Controls Applied — 20 August 2026
 
-The following repository controls have been enabled on both authoritative Infinity AI repositories:
+The following repository controls have been enabled on the authoritative platform repository:
 
 | Control | Status |
 |---|---|
@@ -40,9 +39,8 @@ Required checks are now enabled with the following stable, passing contexts:
 | Repository | Required check |
 |---|---|
 | SmartBank AI platform | `Type-check, test, and verify ML compatibility`; `Build platform` |
-| SmartBank AI ML services | `Lint & Unit Tests` |
 
-The ML image-build matrix remains a separate exception: the green lint-and-unit-test gate is required, while the matrix still needs an explicit shared-base-image distribution strategy across isolated GitHub runners. A one-approval rule remains intentionally disabled because the observed reviewer integration has commented but has not issued a valid `APPROVED` review. This staged configuration prevents an administrator lockout while retaining meaningful merge and history safeguards.
+An earlier ML repository configuration is outside this task's scope and will not be changed further without explicit user direction. A one-approval rule remains intentionally disabled because the observed reviewer integration has commented but has not issued a valid `APPROVED` review. This staged platform configuration prevents an administrator lockout while retaining meaningful merge and history safeguards.
 
 ## Safe Rollout Sequence
 
@@ -82,7 +80,7 @@ Leave signed commits disabled initially. Revisit it after every authorised human
 ## Required Evidence Before Production Governance Promotion
 
 1. A green platform CI run with its final, documented check name.
-2. Green ML lint, audit, unit-test, and image-build runs with stable check names. The lint-and-unit-test gate is currently active; the dependent image-build matrix remains remediation work.
+2. A passing platform governance PR with the two documented required checks.
 3. A successful throwaway protected-branch test proving failed checks block merge.
 4. A successful independent approval test, not merely a Greptile comment or check.
 5. A `CODEOWNERS` file and named accountable owners before Code Owners enforcement.

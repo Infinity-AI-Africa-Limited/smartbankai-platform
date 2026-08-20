@@ -231,22 +231,25 @@
 - [ ] Verify the platform-to-orchestrator advisory path, immutable audit events, and safe unavailable fallback
 - [x] Document the separate private-staging and bank-production deployment prerequisites
 
-## GitHub Governance and Security Baseline
+## GitHub Governance and Security Baseline — Platform Scope
+- [x] Revert the uncommitted ML-only sequential image-workflow experiment from the local workspace
+- [ ] Confirm whether to retain or roll back the ML repository security and branch-protection settings applied before the platform-only scope correction
 - [x] Verify active pull-request checks and branch-administrator safety before enabling protection
-- [x] Prepare a non-lockout branch-protection rollout for platform and ML repositories
-- [x] Enable required repository security controls, including Dependabot alerts, secret scanning, and push protection where available
+- [x] Prepare a non-lockout branch-protection rollout for the platform repository and MistaRichMan mirror
+- [x] Enable required repository security controls, including Dependabot alerts, secret scanning, and push protection where available, on the platform repository
 - [x] Apply initial required CI checks on protected organisation branches while retaining administrator recovery and zero required approvals
 - [ ] Test protected-branch enforcement with a throwaway review workflow before requiring approvals without bypass
 - [x] Document the required-check names, signed-commit exception, and future CODEOWNERS rollout
 - [x] Repair the platform CI checks before making them merge-blocking
-- [ ] Repair the remaining ML image-build matrix before treating the full ML pipeline as release-ready
+- [x] Deferred outside platform-only scope — Repair the remaining ML image-build matrix before treating the full ML pipeline as release-ready
 - [x] Correct the platform CI action order so pnpm exists before setup-node enables its pnpm cache
 - [x] Remove the conflicting explicit pnpm action version so CI uses the package-manager pin
 - [x] Isolate advisory workflow tests from the external database while preserving assertions that audit persistence is invoked
 - [x] Make database-dependent tenant mutation coverage conditional on an available integration database in CI
-- [x] Pin the ML CI ruff version to the validated repository lint baseline before making it a required merge check
-- [x] Configure a Buildx builder in ML CI so GitHub Actions cache export works for Docker image builds
-- [ ] Refactor the ML image-build workflow so dependent agent images receive the shared base image across isolated matrix runners
-- [x] Skip the ML image-publish matrix on pull requests while its cross-runner base-image dependency is being refactored
+- [x] Deferred outside platform-only scope — Pin the ML CI ruff version to the validated repository lint baseline before making it a required merge check
+- [x] Deferred outside platform-only scope — Configure a Buildx builder in ML CI so GitHub Actions cache export works for Docker image builds
+- [x] Deferred outside platform-only scope — Refactor the ML image-build workflow so dependent agent images receive the shared base image across isolated matrix runners
+- [x] Deferred outside platform-only scope — Replace the isolated ML image-build matrix with a sequential shared-base build-and-push workflow for trusted branch pushes
+- [x] Deferred outside platform-only scope — Skip the ML image-publish matrix on pull requests while its cross-runner base-image dependency is being refactored
 - [x] Align branch-protection required-check names with the actual stable GitHub Actions job names
 - [ ] Confirm an independent human or approved GitHub App can submit `APPROVED` reviews before setting a non-bypassable approval requirement
