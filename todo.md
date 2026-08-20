@@ -233,12 +233,13 @@
 
 ## GitHub Governance and Security Baseline — Platform Scope
 - [x] Revert the uncommitted ML-only sequential image-workflow experiment from the local workspace
-- [ ] Confirm whether to retain or roll back the ML repository security and branch-protection settings applied before the platform-only scope correction
+- [x] Retain the existing ML security and branch-protection baseline while pausing further ML governance work
 - [x] Verify active pull-request checks and branch-administrator safety before enabling protection
 - [x] Prepare a non-lockout branch-protection rollout for the platform repository and MistaRichMan mirror
 - [x] Enable required repository security controls, including Dependabot alerts, secret scanning, and push protection where available, on the platform repository
 - [x] Apply initial required CI checks on protected organisation branches while retaining administrator recovery and zero required approvals
-- [ ] Test protected-branch enforcement with a throwaway review workflow before requiring approvals without bypass
+- [x] Create a dedicated throwaway platform pull request that fails a required check and capture the blocked merge state
+- [x] Capture the platform branch-protection evidence and blocked/green test states in the governance runbook
 - [x] Document the required-check names, signed-commit exception, and future CODEOWNERS rollout
 - [x] Repair the platform CI checks before making them merge-blocking
 - [x] Deferred outside platform-only scope — Repair the remaining ML image-build matrix before treating the full ML pipeline as release-ready
@@ -252,4 +253,4 @@
 - [x] Deferred outside platform-only scope — Replace the isolated ML image-build matrix with a sequential shared-base build-and-push workflow for trusted branch pushes
 - [x] Deferred outside platform-only scope — Skip the ML image-publish matrix on pull requests while its cross-runner base-image dependency is being refactored
 - [x] Align branch-protection required-check names with the actual stable GitHub Actions job names
-- [ ] Confirm an independent human or approved GitHub App can submit `APPROVED` reviews before setting a non-bypassable approval requirement
+- [x] Deferred to governance Phase 2 — Confirm an independent human or approved GitHub App can submit `APPROVED` reviews before setting a non-bypassable approval requirement

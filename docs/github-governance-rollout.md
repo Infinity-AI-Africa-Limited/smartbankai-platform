@@ -42,6 +42,14 @@ Required checks are now enabled with the following stable, passing contexts:
 
 An earlier ML repository configuration is outside this task's scope and will not be changed further without explicit user direction. A one-approval rule remains intentionally disabled because the observed reviewer integration has commented but has not issued a valid `APPROVED` review. This staged platform configuration prevents an administrator lockout while retaining meaningful merge and history safeguards.
 
+### Scope Decision — 20 August 2026
+
+The project owner approved retaining the ML repository's existing security and branch-protection baseline. It is a separate, paused workstream: no further ML governance, CI, model, or deployment changes will be made as part of this platform-only task. The platform governance pull request provides the initial protected-branch test: its two required checks are green while the pull request remains blocked pending the rule's remaining merge conditions. Administrator recovery remains enabled until an independent reviewer can submit a valid GitHub `APPROVED` review.
+
+### Protected-Branch Enforcement Evidence — 20 August 2026
+
+A dedicated throwaway platform pull request, [#6](https://github.com/Infinity-AI-Africa-Limited/smartbankai-platform/pull/6), intentionally failed the `Build platform` command. GitHub reported `Build platform: failure`, `Type-check, test, and verify ML compatibility: success`, and `mergeable_state: blocked`. This confirms that the required-check rule blocks merge when one required platform check fails. The pull request was closed and its test branch deleted immediately after evidence capture.
+
 ## Safe Rollout Sequence
 
 ### Phase 1 — Security visibility and CI repair
