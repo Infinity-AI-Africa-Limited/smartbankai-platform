@@ -35,6 +35,19 @@ jobs:
       - name: Run unit tests
         run: pnpm test
 
+      # The ML repository gates on pip-audit; this repository had no dependency
+      # gate at all, which is why 3 critical and 49 high advisories accumulated
+      # unnoticed - including a SQL-injection advisory in drizzle-orm, the ORM
+      # every database call goes through.
+      #
+      # Reporting-only for now: making it blocking today would freeze every
+      # pull request behind a remediation that needs its own reviewed change.
+      # THIS MUST BECOME BLOCKING BEFORE BANK UAT - remove continue-on-error
+      # and drop --audit-level once the backlog is cleared.
+      - name: Audit dependencies (reporting only)
+        continue-on-error: true
+        run: pnpm audit --audit-level high
+
       - name: Verify pinned ML API contract
         env:
           ML_CONTRACT_PATH: contracts/ml-orchestrator.v1.openapi.yaml
