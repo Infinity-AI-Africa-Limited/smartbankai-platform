@@ -235,12 +235,18 @@
 - [x] Verify active pull-request checks and branch-administrator safety before enabling protection
 - [x] Prepare a non-lockout branch-protection rollout for platform and ML repositories
 - [x] Enable required repository security controls, including Dependabot alerts, secret scanning, and push protection where available
+- [x] Apply initial required CI checks on protected organisation branches while retaining administrator recovery and zero required approvals
 - [ ] Test protected-branch enforcement with a throwaway review workflow before requiring approvals without bypass
 - [x] Document the required-check names, signed-commit exception, and future CODEOWNERS rollout
-- [ ] Repair failing platform and ML CI checks before making them merge-blocking
-- [ ] Correct the platform CI action order so pnpm exists before setup-node enables its pnpm cache
-- [ ] Remove the conflicting explicit pnpm action version so CI uses the package-manager pin
-- [ ] Isolate advisory workflow tests from the external database while preserving assertions that audit persistence is invoked
-- [ ] Make database-dependent tenant mutation coverage conditional on an available integration database in CI
-- [ ] Align branch-protection required-check names with the actual stable GitHub Actions job names
+- [x] Repair the platform CI checks before making them merge-blocking
+- [ ] Repair the remaining ML image-build matrix before treating the full ML pipeline as release-ready
+- [x] Correct the platform CI action order so pnpm exists before setup-node enables its pnpm cache
+- [x] Remove the conflicting explicit pnpm action version so CI uses the package-manager pin
+- [x] Isolate advisory workflow tests from the external database while preserving assertions that audit persistence is invoked
+- [x] Make database-dependent tenant mutation coverage conditional on an available integration database in CI
+- [x] Pin the ML CI ruff version to the validated repository lint baseline before making it a required merge check
+- [x] Configure a Buildx builder in ML CI so GitHub Actions cache export works for Docker image builds
+- [ ] Refactor the ML image-build workflow so dependent agent images receive the shared base image across isolated matrix runners
+- [x] Skip the ML image-publish matrix on pull requests while its cross-runner base-image dependency is being refactored
+- [x] Align branch-protection required-check names with the actual stable GitHub Actions job names
 - [ ] Confirm an independent human or approved GitHub App can submit `APPROVED` reviews before setting a non-bypassable approval requirement
