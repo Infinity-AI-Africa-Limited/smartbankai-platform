@@ -9,6 +9,7 @@ interface Message {
   role: "user" | "assistant";
   content: string;
   timestamp: Date;
+  humanReviewRequired?: boolean;
 }
 
 const QUICK_PROMPTS = [
@@ -71,6 +72,7 @@ export default function MobileAssistant() {
         role: "assistant",
         content: result.reply,
         timestamp: new Date(),
+        humanReviewRequired: result.humanReviewRequired,
       };
       setMessages(prev => [...prev, assistantMsg]);
     } catch {
@@ -130,6 +132,9 @@ export default function MobileAssistant() {
                 <p className="text-white/20 text-[10px] mt-1.5">
                   {msg.timestamp.toLocaleTimeString("en-NG", { hour: "2-digit", minute: "2-digit" })}
                 </p>
+                {msg.role === "assistant" && msg.humanReviewRequired && (
+                  <p className="mt-2 text-[10px] font-medium text-amber-300">Advisory only — verify with your bank before acting.</p>
+                )}
               </div>
             </div>
           ))}

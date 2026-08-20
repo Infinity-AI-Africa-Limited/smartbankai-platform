@@ -254,3 +254,10 @@
 - [x] Deferred outside platform-only scope — Skip the ML image-publish matrix on pull requests while its cross-runner base-image dependency is being refactored
 - [x] Align branch-protection required-check names with the actual stable GitHub Actions job names
 - [x] Deferred to governance Phase 2 — Confirm an independent human or approved GitHub App can submit `APPROVED` reviews before setting a non-bypassable approval requirement
+
+## Claude Code Hardening Report Execution
+- [x] Validate the `hardening/p0` branch state, evidence, and test claims before opening or recommending its pull request
+- [x] Remove or qualify unsupported public claims about AI accuracy and production readiness
+- [x] Verify platform enforcement of human-review-required responses, tenant isolation, consent state, and immutable audit paths
+- [x] Prepare private-staging security controls, including mTLS/workload identity, real secret injection, and deployment evidence
+- [x] Record the design-partner bank UAT/DPA dependency and independent model-validation prerequisites

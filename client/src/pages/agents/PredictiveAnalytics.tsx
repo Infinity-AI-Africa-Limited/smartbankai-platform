@@ -34,7 +34,7 @@ export default function PredictiveAnalytics() {
     <div className="space-y-6 animate-fade-up">
       <AgentBadge name="Predictive Analytics" size="lg" showDesc />
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard title="Forecast Accuracy" value="94.2%" icon={BarChart3} color="cyan" />
+        <StatCard title="Forecast Validation" value="Pending" icon={BarChart3} color="cyan" />
         <StatCard title="Churn Risk Customers" value="18.7K" icon={Users} color="gold" trend={{ value: -2.1, label: "vs last month" }} />
         <StatCard title="Predicted Default Rate" value="2.4%" icon={AlertTriangle} color="red" />
         <StatCard title="Revenue Forecast (Q3)" value="₦172M" icon={TrendingUp} color="green" trend={{ value: 14.3, label: "projected growth" }} />
@@ -42,7 +42,7 @@ export default function PredictiveAnalytics() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <div className="rounded-xl border border-[#1E2A3A] p-5" style={{ background: "#111827" }}>
           <h3 className="text-sm font-semibold text-white mb-1">Cash Flow Forecast (6-Month)</h3>
-          <p className="text-xs text-slate-500 mb-4">Prophet time-series model — 94.2% accuracy</p>
+          <p className="text-xs text-slate-500 mb-4">Synthetic development scenario only — independent bank-data validation and calibration are pending.</p>
           <ResponsiveContainer width="100%" height={200}>
             <AreaChart data={cashFlowForecast}>
               <defs>

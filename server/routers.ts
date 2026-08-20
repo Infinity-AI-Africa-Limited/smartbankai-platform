@@ -23,7 +23,7 @@ import {
   getDataSources,
   getTenantTransactionStats,
 } from "./db";
-import { agentTypes } from "../drizzle/schema";
+import { agentTypes, type User } from "../drizzle/schema";
 import { cached, TTL, rateLimiter, RATE_LIMITS } from "./_core/scale";
 import {
   assistantFeaturesSchema,
@@ -50,6 +50,57 @@ const ownerProcedure = protectedProcedure.use(({ ctx, next }) => {
   }
   return next({ ctx });
 });
+
+/**
+ * Tenant administrators, analysts, and banking users can only obtain an advisory
+ * for their own tenant. Platform owners retain cross-tenant support access.
+ */
+function resolveAdvisoryTenantId(user: User, requestedTenantId: number): number {
+  if (user.role === "platform_owner" || user.role === "admin") {
+    return requestedTenantId;
+  }
+
+  if (!user.tenantId) {
+    throw new TRPCError({
+      code: "FORBIDDEN",
+      message: "No tenant is assigned to this user; advisory access is unavailable.",
+    });
+  }
+
+  if (user.tenantId !== requestedTenantId) {
+    throw new TRPCError({
+      code: "FORBIDDEN",
+      message: "You are not authorized to request an advisory for another tenant.",
+    });
+  }
+
+  return user.tenantId;
+}
+
+type ChatHistoryEntry = { role: "user" | "assistant"; content: string };
+
+/** Exported for regression testing: the current user turn must be represented once. */
+export function buildFallbackChatMessages(
+  systemPrompt: string,
+  priorMessages: ChatHistoryEntry[],
+  userMessage: string,
+) {
+  const chronologicalHistory = [...priorMessages].reverse();
+  const latestHistoryIndex = chronologicalHistory.length - 1;
+  const historyWithoutCurrentTurn = chronologicalHistory.filter(
+    (message, index) => !(
+      index === latestHistoryIndex
+      && message.role === "user"
+      && message.content === userMessage
+    ),
+  );
+
+  return [
+    { role: "system" as const, content: systemPrompt },
+    ...historyWithoutCurrentTurn,
+    { role: "user" as const, content: userMessage },
+  ];
+}
 
 // ─── Mock data generators for demo realism ───────────────────────────────────
 function generateMockMetrics() {
@@ -235,27 +286,27 @@ export const appRouter = router({
     fraud: adminProcedure
       .input(z.object({ tenantId: z.number().int().positive(), payload: transactionFeaturesSchema }))
       .mutation(async ({ input, ctx }) =>
-        runAdvisoryWorkflow(input.tenantId, ctx.user.id, "fraud_check", input.payload)
+        runAdvisoryWorkflow(resolveAdvisoryTenantId(ctx.user, input.tenantId), ctx.user.id, "fraud_check", input.payload)
       ),
     credit: adminProcedure
       .input(z.object({ tenantId: z.number().int().positive(), payload: creditFeaturesSchema }))
       .mutation(async ({ input, ctx }) =>
-        runAdvisoryWorkflow(input.tenantId, ctx.user.id, "credit_assessment", input.payload)
+        runAdvisoryWorkflow(resolveAdvisoryTenantId(ctx.user, input.tenantId), ctx.user.id, "credit_assessment", input.payload)
       ),
     aml: adminProcedure
       .input(z.object({ tenantId: z.number().int().positive(), payload: transactionFeaturesSchema }))
       .mutation(async ({ input, ctx }) =>
-        runAdvisoryWorkflow(input.tenantId, ctx.user.id, "aml_check", input.payload)
+        runAdvisoryWorkflow(resolveAdvisoryTenantId(ctx.user, input.tenantId), ctx.user.id, "aml_check", input.payload)
       ),
     recommendation: protectedProcedure
       .input(z.object({ tenantId: z.number().int().positive(), payload: customerFeaturesSchema }))
       .mutation(async ({ input, ctx }) =>
-        runAdvisoryWorkflow(input.tenantId, ctx.user.id, "recommend", input.payload)
+        runAdvisoryWorkflow(resolveAdvisoryTenantId(ctx.user, input.tenantId), ctx.user.id, "recommend", input.payload)
       ),
     assistant: protectedProcedure
       .input(z.object({ tenantId: z.number().int().positive(), payload: assistantFeaturesSchema }))
       .mutation(async ({ input, ctx }) =>
-        runAdvisoryWorkflow(input.tenantId, ctx.user.id, "chat", input.payload)
+        runAdvisoryWorkflow(resolveAdvisoryTenantId(ctx.user, input.tenantId), ctx.user.id, "chat", input.payload)
       ),
   }),
 
@@ -286,7 +337,7 @@ export const appRouter = router({
     assess: adminProcedure
       .input(z.object({ tenantId: z.number().int().positive(), payload: transactionFeaturesSchema }))
       .mutation(async ({ input, ctx }) =>
-        runAdvisoryWorkflow(input.tenantId, ctx.user.id, "fraud_check", input.payload)
+        runAdvisoryWorkflow(resolveAdvisoryTenantId(ctx.user, input.tenantId), ctx.user.id, "fraud_check", input.payload)
       ),
   }),
 
@@ -404,7 +455,7 @@ export const appRouter = router({
     analyseTransaction: adminProcedure
       .input(z.object({ tenantId: z.number().int().positive(), payload: transactionFeaturesSchema }))
       .mutation(async ({ input, ctx }) =>
-        runAdvisoryWorkflow(input.tenantId, ctx.user.id, "aml_check", input.payload)
+        runAdvisoryWorkflow(resolveAdvisoryTenantId(ctx.user, input.tenantId), ctx.user.id, "aml_check", input.payload)
       ),
     auditLogs: protectedProcedure
       .input(z.object({ tenantId: z.number().optional(), limit: z.number().optional() }))
@@ -509,17 +560,18 @@ export const appRouter = router({
         language: z.string().min(2).max(10).default("en"),
       }))
       .mutation(async ({ input, ctx }) => {
+        const tenantId = resolveAdvisoryTenantId(ctx.user, input.tenantId);
+        const priorMessages = (await getChatHistory(ctx.user.id, 10)).map((message) => ({
+          role: message.role === "assistant" ? "assistant" as const : "user" as const,
+          content: message.content,
+        }));
         await saveChatMessage({ userId: ctx.user.id, role: "user", content: input.message });
 
-        const priorMessages = await getChatHistory(ctx.user.id, 10);
-        const advisory = await runAdvisoryWorkflow(input.tenantId, ctx.user.id, "chat", {
+        const advisory = await runAdvisoryWorkflow(tenantId, ctx.user.id, "chat", {
           session_id: `platform-user-${ctx.user.id}`,
           customer_id: `platform-user-${ctx.user.id}`,
           message: input.message,
-          conversation_history: priorMessages.reverse().map((message) => ({
-            role: message.role === "assistant" ? "assistant" as const : "user" as const,
-            content: message.content,
-          })),
+          conversation_history: [...priorMessages].reverse(),
           language: input.language,
         });
 
@@ -534,12 +586,7 @@ You assist bank executives, compliance officers, and financial analysts with dat
 Be precise, professional, and reference Nigerian/African market context where relevant.
 Current date: ${new Date().toLocaleDateString("en-NG", { timeZone: "Africa/Lagos" })}.`;
 
-        const history = await getChatHistory(ctx.user.id, 10);
-        const messages = [
-          { role: "system" as const, content: systemPrompt },
-          ...history.reverse().map((m) => ({ role: m.role as "user" | "assistant", content: m.content })),
-          { role: "user" as const, content: input.message },
-        ];
+        const messages = buildFallbackChatMessages(systemPrompt, priorMessages, input.message);
 
         const response = await invokeLLM({ messages });
         const rawContent = response.choices[0]?.message?.content;

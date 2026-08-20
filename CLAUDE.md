@@ -99,6 +99,10 @@ The model branch provides reproducible, privacy-safe **synthetic** Nigerian-bank
 
 Synthetic artefacts validate pipeline wiring and controls. They are **not** evidence of production fraud accuracy, credit-risk calibration, AML efficacy, fairness, or regulatory readiness. Replace all synthetic data and generated model artefacts with bank-authorised UAT data, independent validation, signed model versions, and production model governance before deployment.
 
+## Design-partner bank dependency
+
+Independent model validation, threshold calibration, fairness analysis, and MLRO approval are blocked until a design-partner bank signs both the UAT agreement and data-processing agreement (DPA), then makes approved bank data available under the agreed minimisation, retention, and access controls. Do not attempt to treat synthetic performance as a substitute. Record this dependency in every release plan and maintain the private-staging evidence register in `docs/private-staging-security-controls.md`.
+
 ## Production-hardening priorities
 
 ### P0: before bank UAT

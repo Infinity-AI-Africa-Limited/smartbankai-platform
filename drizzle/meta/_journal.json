@@ -15,6 +15,13 @@
       "when": 1780526690625,
       "tag": "0001_first_scream",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "5",
+      "when": 1787208372509,
+      "tag": "0002_ai_decision_audits",
+      "breakpoints": true
     }
   ]
 }

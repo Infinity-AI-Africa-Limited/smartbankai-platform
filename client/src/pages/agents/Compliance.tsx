@@ -34,6 +34,12 @@ const CBN_TEMPLATES = [
 export default function Compliance() {
   const [activeTab, setActiveTab] = useState<"reports" | "aml" | "audit">("reports");
   const [selectedPeriod, setSelectedPeriod] = useState("Q2-2026");
+  const [amlAdvisorySummary, setAmlAdvisorySummary] = useState<{
+    status: string;
+    recommendation: string | null;
+    confidence: number | null;
+    decisionId: string;
+  } | null>(null);
   const reportsQuery = trpc.compliance.reports.useQuery({});
   const amlQuery = trpc.compliance.amlAlerts.useQuery({});
   const transactionsQuery = trpc.fraud.transactions.useQuery({ tenantId: 4, limit: 30 });
@@ -51,7 +57,15 @@ export default function Compliance() {
   const openAlerts = alerts.filter((a) => a.status === "open").length;
   const criticalAlerts = alerts.filter((a) => a.severity === "critical").length;
   const amlAdvisory = trpc.compliance.analyseTransaction.useMutation({
-    onSuccess: (result) => toast.success(result.status === "advisory" ? "AML advisory recorded for human review" : "AML service unavailable — review is required"),
+    onSuccess: (result) => {
+      setAmlAdvisorySummary({
+        status: result.status,
+        recommendation: result.recommendation ?? null,
+        confidence: result.confidence ?? null,
+        decisionId: result.decision_id,
+      });
+      toast.success(result.status === "advisory" ? "AML advisory recorded for human review" : "AML service unavailable — review is required");
+    },
     onError: (error) => toast.error(error.message),
   });
 
@@ -208,6 +222,18 @@ export default function Compliance() {
               </Button>
             </div>
           </div>
+          {amlAdvisorySummary && (
+            <div role="status" className="mx-4 mt-4 rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-100">
+              <div className="font-semibold">AI AML advisory — human review required</div>
+              <p className="mt-1 text-amber-50/90">
+                {amlAdvisorySummary.recommendation ?? "No automated decision is available. Escalate this item to an authorised compliance reviewer."}
+              </p>
+              <p className="mt-1 text-amber-200/70">
+                Status: {amlAdvisorySummary.status} · Decision ID: {amlAdvisorySummary.decisionId}
+                {amlAdvisorySummary.confidence !== null ? ` · Confidence: ${(amlAdvisorySummary.confidence * 100).toFixed(0)}%` : ""}
+              </p>
+            </div>
+          )}
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>

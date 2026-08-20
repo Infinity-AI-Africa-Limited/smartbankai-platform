@@ -11,6 +11,7 @@ type Message = {
   role: "user" | "assistant";
   content: string;
   timestamp: Date;
+  humanReviewRequired?: boolean;
 };
 
 const SUGGESTED_PROMPTS = [
@@ -83,6 +84,7 @@ export default function WebAssistant() {
         role: "assistant",
         content: result.reply,
         timestamp: new Date(),
+        humanReviewRequired: result.humanReviewRequired,
       };
       setMessages(prev => [...prev, assistantMsg]);
     } catch {
@@ -167,6 +169,9 @@ export default function WebAssistant() {
                 <p className="text-white/25 text-xs mt-1.5">
                   {msg.timestamp.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                 </p>
+                {msg.role === "assistant" && msg.humanReviewRequired && (
+                  <p className="mt-2 text-[10px] font-medium text-amber-300">Advisory only — verify with your bank before acting.</p>
+                )}
               </div>
             </div>
           ))}
@@ -227,7 +232,7 @@ export default function WebAssistant() {
         </form>
 
         <p className="text-white/20 text-xs text-center mt-2 shrink-0">
-          SmartBank AI can make mistakes. Verify important financial decisions with your bank.
+          SmartBank AI provides advisory information only. Verify all important financial decisions with your bank.
         </p>
       </div>
     </WebBankingLayout>

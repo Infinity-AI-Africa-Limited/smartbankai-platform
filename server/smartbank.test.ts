@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import { appRouter } from "./routers";
+import { appRouter, buildFallbackChatMessages } from "./routers";
 import type { TrpcContext } from "./_core/context";
 import { afterEach, beforeEach } from "vitest";
 import { getDb, setAiDecisionAuditWriterForTesting } from "./db";
@@ -12,7 +12,10 @@ function makeClearedCookies() {
   return { cleared, clearCookie: (name: string, options: Record<string, unknown>) => cleared.push({ name, options }) };
 }
 
-function makeCtx(role: "platform_owner" | "tenant_admin" | "analyst" | "user" | "admin" = "platform_owner"): TrpcContext {
+function makeCtx(
+  role: "platform_owner" | "tenant_admin" | "analyst" | "user" | "admin" = "platform_owner",
+  tenantId: number | null = 4,
+): TrpcContext {
   const { clearCookie } = makeClearedCookies();
   return {
     user: {
@@ -22,6 +25,7 @@ function makeCtx(role: "platform_owner" | "tenant_admin" | "analyst" | "user" | 
       name: "Test Admin",
       loginMethod: "manus",
       role,
+      tenantId,
       createdAt: new Date(),
       updatedAt: new Date(),
       lastSignedIn: new Date(),
@@ -315,6 +319,39 @@ describe("compliance", () => {
 
 // ─── Advisory workflow audit coverage ─────────────────────────────────────────
 describe("advisory workflows", () => {
+  it("binds tenant-scoped advisory requests to the authenticated tenant", async () => {
+    const caller = appRouter.createCaller(makeCtx("tenant_admin", 4));
+    const payload = {
+      customer_id: "customer-4",
+      products_held: ["Savings"],
+      channel_preference: "mobile" as const,
+      account_age_months: 12,
+    };
+
+    await expect(caller.aiAdvisory.recommendation({ tenantId: 5, payload }))
+      .rejects.toMatchObject({ code: "FORBIDDEN" });
+    await expect(caller.aiAdvisory.assistant({
+      tenantId: 5,
+      payload: { session_id: "session-4", message: "Show my account options" },
+    })).rejects.toMatchObject({ code: "FORBIDDEN" });
+  });
+
+  it("does not duplicate the current user turn in a fallback LLM conversation", () => {
+    const messages = buildFallbackChatMessages(
+      "system instructions",
+      [
+        { role: "user", content: "Current question" },
+        { role: "assistant", content: "Earlier answer" },
+        { role: "user", content: "Earlier question" },
+      ],
+      "Current question",
+    );
+
+    expect(messages.filter((message) => message.role === "user" && message.content === "Current question"))
+      .toHaveLength(1);
+    expect(messages.at(-1)).toEqual({ role: "user", content: "Current question" });
+  });
+
   it("persists advisory audit evidence for fraud, AML, recommendation, and assistant flows", async () => {
     const persistedAudits: Array<Record<string, unknown>> = [];
     setAiDecisionAuditWriterForTesting(async (data) => { persistedAudits.push(data); });
