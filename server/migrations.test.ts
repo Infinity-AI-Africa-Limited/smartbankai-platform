@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { readdirSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
+import { sql } from "drizzle-orm";
+import { getDb } from "./db";
+
+const hasDatabase = Boolean(process.env.DATABASE_URL);
 
 // Guards the deployment path rather than the running app. The audit table was
 // once defined in a SQL file that sat outside the journal, so `drizzle-kit
@@ -65,5 +69,39 @@ describe("migrations", () => {
     // Advisory writes fail closed, so losing this table takes down every
     // advisory flow rather than silently skipping the audit.
     expect(tablesCreatedByMigrations()).toContain("ai_decision_audits");
+  });
+});
+
+// The static checks above compare files to files. This one runs the command a
+// deployment runs against an empty database and asks what actually exists
+// afterwards, which is the only way to catch a migration that parses but does
+// not build the schema.
+describe.skipIf(!hasDatabase)("migrations applied to a clean database", () => {
+  it("creates every table the schema declares", async () => {
+    const db = await getDb();
+    expect(db, "DATABASE_URL is set but no connection was established").not.toBeNull();
+
+    const result = await db!.execute(
+      sql`SELECT table_name AS name FROM information_schema.tables WHERE table_schema = DATABASE()`,
+    );
+    const rows = (Array.isArray(result) ? result[0] : result) as Array<Record<string, unknown>>;
+    const present = new Set(rows.map((row) => String(row.name ?? row.TABLE_NAME)));
+
+    const missing = [...tablesDeclaredBySchema()].filter((table) => !present.has(table));
+    expect(
+      missing,
+      `declared in schema.ts but absent after drizzle-kit migrate: ${missing.join(", ")}`,
+    ).toEqual([]);
+  });
+
+  it("records the baseline in drizzle's migration journal table", async () => {
+    // If drizzle-kit reported success without journalling, a later migrate
+    // would replay the baseline against a populated database.
+    const db = await getDb();
+    const result = await db!.execute(
+      sql`SELECT COUNT(*) AS applied FROM __drizzle_migrations`,
+    );
+    const rows = (Array.isArray(result) ? result[0] : result) as Array<Record<string, unknown>>;
+    expect(Number(rows[0]?.applied ?? 0)).toBeGreaterThan(0);
   });
 });

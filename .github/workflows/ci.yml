@@ -13,6 +13,27 @@ jobs:
   verify:
     name: Type-check, test, and verify ML compatibility
     runs-on: ubuntu-latest
+
+    # The suite exercises real queries, and the advisory paths fail closed when
+    # no database is reachable. Without one, a green tick would mean less than
+    # it appears to.
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: ci
+          MYSQL_DATABASE: smartbank_ci
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -pci"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=15
+
+    env:
+      DATABASE_URL: mysql://root:ci@127.0.0.1:3306/smartbank_ci
+
     steps:
       - name: Checkout platform
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
@@ -28,6 +49,13 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+
+      # Deliberately `migrate`, not `push`. push diffs the schema straight onto
+      # the database and would hide exactly the defect this guards: migrations
+      # that no longer build the schema the application expects. This is the
+      # command a deployment runs.
+      - name: Migrate a clean database
+        run: pnpm db:migrate
 
       - name: Verify TypeScript
         run: pnpm check

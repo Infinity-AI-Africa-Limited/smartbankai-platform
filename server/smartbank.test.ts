@@ -1,6 +1,11 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { appRouter, resolveTenantScope } from "./routers";
 import type { TrpcContext } from "./_core/context";
+
+// A database is optional locally so the suite stays runnable. CI provisions
+// MySQL, and the guard in the "test environment" block below makes sure these
+// cases are never quietly skipped there.
+const hasDatabase = Boolean(process.env.DATABASE_URL);
 import { afterEach, beforeEach } from "vitest";
 import { getDb, setAiDecisionAuditWriterForTesting } from "./db";
 import { MlGateway, setMlGatewayForTesting } from "./mlGateway";
@@ -603,5 +608,12 @@ describe("tenant isolation", () => {
       const caller = appRouter.createCaller(makeTenantCtx("tenant_admin", 7));
       await expect(caller.platform.stats()).rejects.toThrow(/Platform owner access required/);
     });
+  });
+});
+
+// ─── Test environment ─────────────────────────────────────────────────────────
+describe("test environment", () => {
+  it("CI provides a database, so database-backed cases are never skipped there", () => {
+    if (process.env.CI) expect(hasDatabase).toBe(true);
   });
 });
