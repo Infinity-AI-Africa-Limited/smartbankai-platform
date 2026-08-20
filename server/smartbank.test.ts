@@ -2,7 +2,7 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 import { appRouter } from "./routers";
 import type { TrpcContext } from "./_core/context";
 import { afterEach, beforeEach } from "vitest";
-import { setAiDecisionAuditWriterForTesting } from "./db";
+import { getDb, setAiDecisionAuditWriterForTesting } from "./db";
 import { MlGateway, setMlGatewayForTesting } from "./mlGateway";
 import { randomUUID } from "node:crypto";
 
@@ -122,7 +122,8 @@ describe("tenants", () => {
     ).rejects.toThrow();
   });
 
-  it("platform_owner can create a tenant", async () => {
+  it("platform_owner can create a tenant when an integration database is available", async () => {
+    if (!(await getDb())) return;
     const caller = appRouter.createCaller(makeCtx("platform_owner"));
     const result = await caller.tenants.create({
       name: "Acme MFB",
